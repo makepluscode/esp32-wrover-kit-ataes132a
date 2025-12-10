@@ -1,0 +1,149 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+
+# Build artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.su
+*.idb
+*.pdb
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# IDE - VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/c_cpp_properties.json
+.vscode/.browse.c_cpp.db*
+.vscode/ipch
+
+# IDE - CLion
+.idea/
+cmake-build-*/
+
+# IDE - Eclipse
+.project
+.cproject
+.settings/
+
+# IDE - NetBeans
+nbproject/
+
+# IDE - Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS - Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# OS - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# OS - Linux
+*~
+.directory
+.Trash-*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+*.log
+
+# Archive files (keep docs, but ignore zip archives)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Python (if using PlatformIO Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# Test coverage
+*.gcov
+*.gcda
+*.gcno
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Backup files
+*.backup
+*.old
+
+# Main file
+src/main.cpp

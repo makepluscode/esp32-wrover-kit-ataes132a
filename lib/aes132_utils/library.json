@@ -1,0 +1,13 @@
+{
+  "name": "aes132_utils",
+  "version": "1.0.0",
+  "description": "Common utility functions for AES132 examples",
+  "authors": [
+    {
+      "name": "ESP32 Port"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
+

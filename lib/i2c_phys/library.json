@@ -1,0 +1,13 @@
+{
+  "name": "i2c_phys",
+  "version": "1.0.0",
+  "description": "I2C physical layer implementation for ESP32 using Arduino Wire library",
+  "authors": [
+    {
+      "name": "ESP32 Port"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
+

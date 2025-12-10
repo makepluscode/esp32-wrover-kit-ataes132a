@@ -1,0 +1,18 @@
+{
+  "name": "aes132",
+  "version": "2.1.1",
+  "description": "Atmel ATAES132A CryptoAuth Library - I2C interface",
+  "authors": [
+    {
+      "name": "Atmel Crypto Products"
+    }
+  ],
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": [
+    {
+      "name": "i2c_phys"
+    }
+  ]
+}
+
