@@ -68,6 +68,5 @@ Response data (byte-by-byte):
 
 ## 다음 예제
 
-- [예제 2: 메모리 읽기](../02_memory_read/README.md)
-- [예제 4: 랜덤 생성](../04_random/README.md)
+- [예제 2: 메모리 읽기](../02_memory_read/README.md) - BlockRead 명령어로 메모리 읽기
 
