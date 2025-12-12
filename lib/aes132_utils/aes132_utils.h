@@ -85,6 +85,8 @@ void print_result(const char* operation, uint8_t result);
  */
 int compare_data(const uint8_t* data1, const uint8_t* data2, uint8_t length);
 
+
+
 #ifdef __cplusplus
 }
 #endif

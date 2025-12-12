@@ -24,7 +24,7 @@ extern "C" {
 #define I2C_DEFAULT_ADDRESS   ((uint8_t) 0xA0)
 
 // I2C address currently in use
-static uint8_t i2c_address_current = I2C_DEFAULT_ADDRESS;
+uint8_t i2c_address_current = I2C_DEFAULT_ADDRESS;
 
 // I2C pins (SDA, SCL)
 static int sda_pin = 21;

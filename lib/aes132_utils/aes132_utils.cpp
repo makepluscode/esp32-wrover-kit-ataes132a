@@ -145,3 +145,5 @@ int compare_data(const uint8_t* data1, const uint8_t* data2, uint8_t length) {
     return 0;  // 같음
 }
 
+
+

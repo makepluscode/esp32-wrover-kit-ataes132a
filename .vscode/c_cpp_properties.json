@@ -9,6 +9,7 @@
             "name": "PlatformIO",
             "includePath": [
                 "E:/Workspace/ESP32-CRYPTOAUTH-Example/src",
+                "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132_utils",
                 "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132",
                 "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/i2c_phys",
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -209,7 +210,6 @@
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/dio_qspi/include",
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/variants/esp32",
-                "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132_utils",
                 "E:/Workspace/ESP32-CRYPTOAUTH-Example/.pio/libdeps/esp-wrover-kit/Unity/src",
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                 "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",
@@ -249,6 +249,7 @@
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
                     "E:/Workspace/ESP32-CRYPTOAUTH-Example/src",
+                    "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132_utils",
                     "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132",
                     "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/i2c_phys",
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -449,7 +450,6 @@
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/dio_qspi/include",
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/variants/esp32",
-                    "E:/Workspace/ESP32-CRYPTOAUTH-Example/lib/aes132_utils",
                     "E:/Workspace/ESP32-CRYPTOAUTH-Example/.pio/libdeps/esp-wrover-kit/Unity/src",
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                     "C:/Users/bginess/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",

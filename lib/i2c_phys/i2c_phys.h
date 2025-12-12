@@ -71,6 +71,9 @@ uint8_t i2c_receive_bytes(uint8_t count, uint8_t *data);
 uint8_t i2c_send_slave_address(uint8_t read);
 void i2c_set_pins(int sda, int scl);
 
+// External access to current I2C address
+extern uint8_t i2c_address_current;
+
 #ifdef __cplusplus
 }
 #endif
