@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "aes132_comm.h"
+#include "aes132_utils.h"  // For debug logging functions
 
 /** \brief This function calculates a 16-bit CRC.
  * \param[in] length number of bytes in data buffer
@@ -112,10 +113,17 @@ uint8_t aes132c_wait_for_status_register_bit(uint8_t mask, uint8_t is_set, uint1
 	uint8_t device_status_register;
 
 	do {
+		// Initialize status register to prevent reading stale data
+		device_status_register = 0;
+		
+		// #region agent log
+		debug_log_print_int("wait_for_status_register_bit: BEFORE read, n_retries", n_retries);
+		// #endregion
 		aes132_lib_return = aes132p_read_memory_physical(1, AES132_STATUS_ADDR, &device_status_register);
-		if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
-			// The device is busy. Continue polling until "n_retries" is depleted.
+
+		if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
 			continue;
+		}
 
 		if (is_set == AES132_BIT_SET) {
 			// Wait for the mask bit(s) being set.
@@ -376,7 +384,13 @@ uint8_t aes132c_receive_response(uint8_t size, uint8_t *response)
 	uint8_t crc_index;
 	uint8_t count_byte;
 
+	// Initialize response buffer to prevent reading stale data
+	memset(response, 0, size);
+
 	do {
+		// Initialize response buffer on each retry to prevent reading stale data
+		memset(response, 0, size);
+		
 		aes132_lib_return = aes132c_wait_for_response_ready();
 		if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
 			// Waiting for the Response-Ready bit timed out. We might have lost communication.
@@ -397,6 +411,16 @@ uint8_t aes132c_receive_response(uint8_t size, uint8_t *response)
 		}
 
 		count_byte = response[AES132_RESPONSE_INDEX_COUNT];
+		
+		// Check if count byte is zero or invalid - this indicates I2C read failure
+		// Zero count means no data was received, which is a communication failure
+		if (count_byte == 0) {
+			// Count byte is zero, which means I2C read failed or returned stale data
+			aes132_lib_return = AES132_FUNCTION_RETCODE_COMM_FAIL;
+			(void) aes132c_resync();
+			continue;
+		}
+		
 		if (count_byte > size) {
 			// The buffer provided by the caller is not big enough to store the entire response,
 			// or the count value got corrupted due to a bad communication channel.
@@ -425,14 +449,15 @@ uint8_t aes132c_receive_response(uint8_t size, uint8_t *response)
 			(void) aes132c_resync();
 			continue;
 		}
-
+		
 		// Check CRC.
 		crc_index = count_byte - AES132_CRC_SIZE;
 		aes132c_calculate_crc(crc_index, response, crc);
-		if ((crc[0] == response[crc_index]) && (crc[1] == response[crc_index + 1]))
+		if ((crc[0] == response[crc_index]) && (crc[1] == response[crc_index + 1])) {
 			// We received a consistent response packet. Return the response return code.
 			return response[AES132_RESPONSE_INDEX_RETURN_CODE];
-
+		}
+		
 		// Received and calculated CRC do not match. Retry reading the response buffer.
 		aes132_lib_return = AES132_FUNCTION_RETCODE_BAD_CRC_RX;
 

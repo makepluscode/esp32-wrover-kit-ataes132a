@@ -30,20 +30,26 @@ uint8_t generate_random(uint8_t* random_data, uint8_t length) {
 
     uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
     uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+    memset(rx_buffer, 0, AES132_RESPONSE_SIZE_MAX); // Initialize buffer
+
+    // #region agent log
+    Serial.print("[DEBUG] generate_random_start: length=");
+    Serial.println(length);
+    // #endregion
 
     // Random 명령어 파라미터 구성
     // Mode: 0 (일반 랜덤 생성)
-    // Param1: 생성할 랜덤 바이트 수 (Length)
+    // Param1: 0 (Mode 0에서는 무시됨, 0으로 설정)
     // Param2: 0 (사용 안 함)
-    uint16_t param1 = length;
+    uint16_t param1 = 0;
     uint16_t param2 = 0;
 
     // Random 명령어 실행
     uint8_t ret = aes132m_execute(
         AES132_RANDOM,      // Op-Code: 0x02
         0,                  // Mode: 0 (일반 랜덤 생성)
-        param1,             // Parameter 1: Length (생성할 바이트 수)
-        param2,             // Parameter 2: 0 (사용 안 함)
+        param1,             // Parameter 1: 0
+        param2,             // Parameter 2: 0
         0, NULL,            // Data 1: 없음
         0, NULL,            // Data 2: 없음
         0, NULL,            // Data 3: 없음
@@ -57,7 +63,9 @@ uint8_t generate_random(uint8_t* random_data, uint8_t length) {
         // rx_buffer[0]: Count
         // rx_buffer[1]: Status (Return Code)
         // rx_buffer[2]부터: 생성된 랜덤 데이터
-        uint8_t data_length = rx_buffer[AES132_RESPONSE_INDEX_COUNT] - 3; // Count - Status - Checksum(2)
+        // Count includes: Count(1) + Status(1) + Data(N) + Checksum(2)
+        // So Data length = Count - 4
+        uint8_t data_length = rx_buffer[AES132_RESPONSE_INDEX_COUNT] - AES132_RESPONSE_INDEX_DATA - AES132_CRC_SIZE;
         uint8_t copy_length = (data_length < length) ? data_length : length;
 
         for (uint8_t i = 0; i < copy_length; i++) {
