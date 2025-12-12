@@ -106,6 +106,18 @@ pio device monitor
 pio device monitor -b 115200
 ```
 
+## 코드 품질 관리
+
+이 프로젝트는 `clang-tidy`와 `cppcheck`를 사용하여 코드 품질을 관리합니다.
+
+```powershell
+# 전체 프로젝트 정적 분석 실행
+pio check
+
+# 특정 환경만 검사
+pio check -e esp-wrover-kit
+```
+
 ## 예제 목록
 
 총 **10개의 예제**가 제공되며, 난이도에 따라 3단계로 구분됩니다.
