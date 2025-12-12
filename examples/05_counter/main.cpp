@@ -13,6 +13,34 @@
 #include "aes132_config.h"
 
 /**
+ * @brief 디바이스 정보 확인 (Revision 등)
+ */
+void check_device_info() {
+    Serial.println("=== Checking Device Info ===");
+    uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
+    uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+    
+    // INFO command (Opcode 0x0C), Mode 0 (DevRev)
+    uint8_t ret = aes132m_execute(AES132_INFO, 0, 0, 0, 
+                                 0, NULL, 0, NULL, 0, NULL, 0, NULL, 
+                                 tx_buffer, rx_buffer);
+                                 
+    if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
+        Serial.print("Device Revision: 0x");
+        // DevRev is 4 bytes starting at index 2 (Data index)
+        for(int i=0; i<4; i++) {
+            if(rx_buffer[AES132_RESPONSE_INDEX_DATA + i] < 0x10) Serial.print("0");
+            Serial.print(rx_buffer[AES132_RESPONSE_INDEX_DATA + i], HEX);
+        }
+        Serial.println();
+    } else {
+        Serial.print("Failed to read device info. RetCode: 0x");
+        Serial.println(ret, HEX);
+    }
+    Serial.println();
+}
+
+/**
  * @brief Counter 명령어를 사용하여 카운터 값 읽기
  * 
  * Counter 명령어의 Mode 0을 사용하여 카운터의 현재 값을 읽습니다.
@@ -95,6 +123,10 @@ uint8_t read_counter(uint8_t counter_id, uint32_t* counter_value) {
     } else {
         Serial.print("Error: Counter command failed with code 0x");
         Serial.println(ret, HEX);
+        if (ret == 0x50) {
+            Serial.println("Hint: 0x50 (Parse Error) may indicate that the Counter command");
+            Serial.println("      is not supported by this device revision or configuration.");
+        }
     }
 
     return 0; // 실패
@@ -183,6 +215,8 @@ void setup(void) {
     }
 
     Serial.println("AES132 initialized successfully\n");
+
+    check_device_info();
 
     // 예제 1: 모든 카운터 값 읽기
     Serial.println("=== Example 1: Read All Counter Values ===");

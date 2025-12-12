@@ -32,11 +32,6 @@ uint8_t generate_random(uint8_t* random_data, uint8_t length) {
     uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
     memset(rx_buffer, 0, AES132_RESPONSE_SIZE_MAX); // Initialize buffer
 
-    // #region agent log
-    Serial.print("[DEBUG] generate_random_start: length=");
-    Serial.println(length);
-    // #endregion
-
     // Random 명령어 파라미터 구성
     // Mode: 0 (일반 랜덤 생성)
     // Param1: 0 (Mode 0에서는 무시됨, 0으로 설정)
