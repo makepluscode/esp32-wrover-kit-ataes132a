@@ -46,6 +46,7 @@ if (Test-Path $exampleMain) {
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "  pio run -e esp-wrover-kit -t upload" -ForegroundColor White
     Write-Host "  pio device monitor" -ForegroundColor White
+    exit 0
 } else {
     Write-Host "Error: $exampleMain not found." -ForegroundColor Red
     exit 1

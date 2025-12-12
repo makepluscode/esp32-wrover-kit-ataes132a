@@ -116,9 +116,6 @@ uint8_t aes132c_wait_for_status_register_bit(uint8_t mask, uint8_t is_set, uint1
 		// Initialize status register to prevent reading stale data
 		device_status_register = 0;
 		
-		// #region agent log
-		debug_log_print_int("wait_for_status_register_bit: BEFORE read, n_retries", n_retries);
-		// #endregion
 		aes132_lib_return = aes132p_read_memory_physical(1, AES132_STATUS_ADDR, &device_status_register);
 
 		if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
