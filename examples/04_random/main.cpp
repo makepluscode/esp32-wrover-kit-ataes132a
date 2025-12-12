@@ -126,11 +126,47 @@ void analyze_random_distribution(const uint8_t* data, uint8_t length) {
     Serial.println();
 }
 
+/**
+ * @brief 디바이스 Lock 상태 확인
+ * 
+ * Config Zone의 LockConfig 레지스터를 읽어 디바이스의 잠금 상태를 확인합니다.
+ */
+void check_device_lock_status() {
+    Serial.println("=== Checking Device Lock Status ===");
+    uint8_t config_data[4] = {0};
+        uint8_t ret = aes132m_read_memory(4, 0xF020, config_data);
+    
+        if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
+            uint8_t lock_config = config_data[0];
+    
+            Serial.print("LockConfig (0xF020): 0x");        Serial.print(lock_config, HEX);
+        
+        if (lock_config == 0x55) {
+            Serial.println(" (Unlocked - Development Mode)");
+            Serial.println("Warning: RNG may produce fixed patterns (0xA5) in this state.");
+        } else if (lock_config == 0x00) {
+            Serial.println(" (Locked - Production Mode)");
+        } else {
+            Serial.println(" (Unknown State)");
+        }
+        
+        Serial.print("Raw Config Bytes: ");
+        print_hex(NULL, config_data, 4);
+    } else {
+        Serial.print("Failed to read Lock Status. RetCode: 0x");
+        Serial.println(ret, HEX);
+    }
+    Serial.println();
+}
+
 void setup(void) {
     Serial.begin(AES132_SERIAL_BAUD);
     while (!Serial) {
         delay(10);
     }
+    
+    // Allow time for serial monitor to connect
+    delay(3000);
 
     Serial.println("\n========================================");
     Serial.println("ESP32 AES132 CryptoAuth Example");
@@ -146,6 +182,9 @@ void setup(void) {
     }
 
     Serial.println("AES132 initialized successfully\n");
+
+    // Lock 상태 확인
+    check_device_lock_status();
 
     // 예제 1: 단일 랜덤 바이트 생성
     Serial.println("=== Example 1: Generate Single Random Byte ===");
