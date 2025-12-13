@@ -30,8 +30,7 @@
  * @return 0x00=성공
  */
 uint8_t configure_key_slot(uint8_t key_id) {
-    uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
-    uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+
 
     // KeyConfig 주소 계산 (슬롯당 4바이트)
     uint16_t config_addr = AES132_KEY_CONFIG_ADDR_BASE + (key_id * 4);
@@ -160,7 +159,7 @@ void setup(void) {
     
     for (int i = 0; i < 16; i++) {
         // KeyConfig 덤프 시 시작 주소 수정
-        addr = 0xF080 + (i * 4); // Corrected to 4 bytes stride
+        uint16_t addr = 0xF080 + (i * 4); // Corrected to 4 bytes stride
         
         ret_read = aes132m_execute(
             AES132_BLOCK_READ,
