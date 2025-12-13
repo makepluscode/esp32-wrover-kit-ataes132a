@@ -33,8 +33,8 @@ uint8_t configure_key_slot(uint8_t key_id) {
     uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
     uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
 
-    // KeyConfig 주소 계산 (슬롯당 2바이트)
-    uint16_t config_addr = AES132_KEY_CONFIG_ADDR_BASE + (key_id * 2);
+    // KeyConfig 주소 계산 (슬롯당 4바이트)
+    uint16_t config_addr = AES132_KEY_CONFIG_ADDR_BASE + (key_id * 4);
 
     // KeyConfig 값 설정
     // Data (2 bytes):
@@ -50,32 +50,16 @@ uint8_t configure_key_slot(uint8_t key_id) {
 }
 
 /**
- * @brief Key Load 명령어를 사용하여 키 저장
- *
- * @param key_id 저장할 Key ID (0-15)
- * @param key_data 저장할 키 데이터 (16바이트)
- * @return 0x00=성공
+ * @brief Unlocked 상태에서 키 직접 쓰기 (BlockWrite 사용)
  */
-uint8_t load_key(uint8_t key_id, const uint8_t* key_data) {
-    uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
-    uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+uint8_t write_key_directly(uint8_t key_id, const uint8_t* key_data) {
+    // Key Memory 주소 계산: Base 0xF200 + (KeyID * 16)
+    uint16_t key_addr = 0xF200 + (key_id * 16);
 
-    // KeyLoad 명령어 실행
-    // Mode: 1 (Key Memory Write)
-    // Param1: Key ID
-    // Param2: 0
-    // Data1: Key Data (16 bytes)
-    uint8_t ret = aes132m_execute(
-        AES132_KEY_LOAD,    // Op-Code: 0x09
-        1,                  // Mode: 1 (Load Key Memory)
-        key_id,             // Param1: Key ID
-        0,                  // Param2: 0
-        16, (uint8_t*)key_data, // Data 1: Key Data
-        0, NULL, 0, NULL, 0, NULL,
-        tx_buffer, rx_buffer
-    );
-
-    return ret;
+    // BlockRead/Write 등 표준 명령어로 쓰기
+    // aes132m_write_memory 함수 사용 (BlockWrite 0x10 Wrapper 가정)
+    // 주의: Unlocked 상태에서만 가능
+    return aes132m_write_memory(16, key_addr, (uint8_t*)key_data);
 }
 
 void setup(void) {
@@ -175,14 +159,8 @@ void setup(void) {
     Serial.println("-----|---------------------");
     
     for (int i = 0; i < 16; i++) {
-        uint16_t addr = 0xF020 + (i * 2); // KeyConfig Address
-        // WRONG ADDR CALCULATION ABOVE: KeyConfig is 2 words (4 bytes) per key? No.
-        // Datasheet: KeyConfig is 4 bytes per Key.
-        // Base 0xF020. Key 0 -> F020. Key 1 -> F024.
-        // Wait, User doc says "Address calculation" might differ.
-        // Standard: 0xF020 + (KeyID * 4).
-        // Let's verify standard addressing.
-        addr = 0xF020 + (i * 4); // Corrected to 4 bytes stride
+        // KeyConfig 덤프 시 시작 주소 수정
+        addr = 0xF080 + (i * 4); // Corrected to 4 bytes stride
         
         ret_read = aes132m_execute(
             AES132_BLOCK_READ,
@@ -241,16 +219,16 @@ void setup(void) {
     
     print_hex("Key to Load: ", my_key, 16);
     
-    ret = load_key(target_key_id, my_key);
-    print_result("Key Load", ret);
+    ret = write_key_directly(target_key_id, my_key);
+    print_result("Key Direct Write", ret);
 
     if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
-        Serial.println("\nSUCCESS: Key loaded successfully!");
+        Serial.println("\nSUCCESS: Key written successfully (Direct Write for Unlocked Chip)!");
         Serial.println("IMPORTANT: You must update Example 6 to use Slot 2.");
     } else {
-        Serial.println("\nFAILED: Could not load key.");
+        Serial.println("\nFAILED: Could not write key.");
         Serial.println("Possible reasons:");
-        Serial.println("- Config Memory is Locked and current config forbids KeyLoad");
+        Serial.println("- I2C Error or Address Limit");
     }
 }
 
