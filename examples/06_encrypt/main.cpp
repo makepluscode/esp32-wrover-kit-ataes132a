@@ -38,9 +38,29 @@ bool encrypt_block(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
   // Encrypt OpCode: 0x06, Mode: 0 (Encrypt)
   // Param1: KeyID, Param2: Data Length (16)
   // Response: [Count][Status][MAC(16)][Ciphertext(16)][CRC]
-  uint8_t ret = aes132m_execute(AES132_ENCRYPT, 0, key_id, BLOCK_SIZE,
-                                BLOCK_SIZE, (uint8_t *)plaintext, 0, NULL, 0,
-                                NULL, 0, NULL, tx_buf, rx_buf);
+  // [AES132 Datasheet 8.6 Encrypt Command]
+  // OpCode: 0x06 (AES132_ENCRYPT) -> 암호화 명령
+  // Mode: 0 (Normal Encryption) -> 일반 암호화 모드 (Inbound)
+  // Param1: KeyID -> 암호화에 사용할 키 슬롯 번호
+  // Param2: Data Length -> 입력 데이터 길이 (16 bytes)
+  // 결과: 칩은 입력된 평문을 암호화하고 MAC을 생성하여 반환합니다.
+  // OutData: [Count][Status][MAC(16)][Ciphertext(16)][CRC]
+  uint8_t ret = aes132m_execute(
+      AES132_ENCRYPT,       // [OpCode] Encrypt (0x06): 암호화 명령
+      0,                    // [Mode] 0: Normal Encryption (일반 암호화 모드)
+      key_id,               // [Param1] KeyID: 암호화에 사용할 키 슬롯 번호
+      BLOCK_SIZE,           // [Param2] Data Length: 입력 데이터 길이 (16 bytes)
+      BLOCK_SIZE,           // [Data1 Length] 16: 입력 데이터(Plaintext) 길이
+      (uint8_t *)plaintext, // [Data1 Pointer] Plaintext: 평문 데이터 포인터
+      0,                    // [Data2 Length] 0: 입력 데이터 없음
+      NULL,                 // [Data2 Pointer] NULL: 입력 데이터 없음
+      0,                    // [Data3 Length] 0: 입력 데이터 없음
+      NULL,                 // [Data3 Pointer] NULL: 입력 데이터 없음
+      0,                    // [Data4 Length] 0: 입력 데이터 없음
+      NULL,                 // [Data4 Pointer] NULL: 입력 데이터 없음
+      tx_buf,               // [TX Buffer] 송신 버퍼 포인터
+      rx_buf                // [RX Buffer] 수신 버퍼 포인터
+  );
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     uint8_t count = rx_buf[AES132_RESPONSE_INDEX_COUNT];
@@ -77,8 +97,27 @@ bool generate_nonce() {
   // OpCode: 0x01 (Nonce)
   // Mode: 1 (Random Nonce, required for KeyConfig 0x0D compatibility)
   // Param1: 0, Param2: 0
-  uint8_t ret = aes132m_execute(0x01, 1, 0, 0, 12, seed, 0, NULL, 0, NULL, 0,
-                                NULL, tx_buf, rx_buf);
+  // [AES132 Datasheet 8.11 Nonce Command]
+  // OpCode: 0x01 (AES132_NONCE) -> Nonce 생성 명령
+  // Mode: 1 (Random Nonce) -> 내부 RNG를 사용하여 Random Nonce 생성 및 TempKey
+  // 갱신 Param1: 0 (Mode 1에서는 무시됨) Param2: 0 (Mode 1에서는 무시됨) Data1:
+  // Seed (12 bytes) -> Random 모드에서도 호스트 측 Seed 입력이 필요함
+  uint8_t ret =
+      aes132m_execute(AES132_NONCE, // [OpCode] Nonce (0x01): Nonce 생성 명령
+                      1,            // [Mode] 1: Random Mode (Random Nonce 생성)
+                      0,            // [Param1] 0: Mode 1에서는 무시됨
+                      0,            // [Param2] 0: Mode 1에서는 무시됨
+                      12,           // [Data1 Length] 12: Host Seed 길이
+                      seed,         // [Data1 Pointer] Seed: Host Seed 포인터
+                      0,            // [Data2 Length] 0: 입력 데이터 없음
+                      NULL,         // [Data2 Pointer] NULL: 입력 데이터 없음
+                      0,            // [Data3 Length] 0: 입력 데이터 없음
+                      NULL,         // [Data3 Pointer] NULL: 입력 데이터 없음
+                      0,            // [Data4 Length] 0: 입력 데이터 없음
+                      NULL,         // [Data4 Pointer] NULL: 입력 데이터 없음
+                      tx_buf,       // [TX Buffer] 송신 버퍼 포인터
+                      rx_buf        // [RX Buffer] 수신 버퍼 포인터
+      );
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     Serial.println("-> Success.");

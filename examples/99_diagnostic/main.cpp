@@ -49,8 +49,27 @@ void print_header(const char *title) {
 uint8_t read_4bytes(uint16_t addr, uint8_t *data) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
-  uint8_t ret = aes132m_execute(AES132_BLOCK_READ, 0, addr, 4, 0, NULL, 0, NULL,
-                                0, NULL, 0, NULL, tx_buf, rx_buf);
+  // [AES132 Datasheet 8.4 BlockRead Command]
+  // OpCode: 0x02 (AES132_BLOCK_READ) -> 블록 읽기
+  // Mode: 0 -> 메모리 직접 읽기
+  // Param1: Address -> 읽을 주소 (4바이트 단위)
+  // Param2: Length (4) -> 읽을 길이
+  uint8_t ret = aes132m_execute(
+      AES132_BLOCK_READ, // [OpCode] BlockRead (0x02): 블록 읽기 명령
+      0,                 // [Mode] 0: 메모리 직접 읽기
+      addr,              // [Param1] Address: 읽을 주소 (4바이트)
+      4,                 // [Param2] Length: 읽을 데이터 길이
+      0,                 // [Data1 Length] 0: 입력 데이터 없음
+      NULL,              // [Data1 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data2 Length] 0: 입력 데이터 없음
+      NULL,              // [Data2 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data3 Length] 0: 입력 데이터 없음
+      NULL,              // [Data3 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data4 Length] 0: 입력 데이터 없음
+      NULL,              // [Data4 Pointer] NULL: 입력 데이터 없음
+      tx_buf,            // [TX Buffer] 송신 버퍼 포인터
+      rx_buf             // [RX Buffer] 수신 버퍼 포인터
+  );
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     memcpy(data, &rx_buf[AES132_RESPONSE_INDEX_DATA], 4);
   }
@@ -142,8 +161,27 @@ void load_keys_direct() {
 uint8_t read_16bytes(uint16_t addr, uint8_t *data) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
-  uint8_t ret = aes132m_execute(AES132_BLOCK_READ, 0, addr, 16, 0, NULL, 0,
-                                NULL, 0, NULL, 0, NULL, tx_buf, rx_buf);
+  // [AES132 Datasheet 8.4 BlockRead Command]
+  // OpCode: 0x02 (AES132_BLOCK_READ) -> 블록 읽기
+  // Mode: 0 -> 메모리 직접 읽기
+  // Param1: Address -> 읽을 주소 (16바이트 단위)
+  // Param2: Length (16) -> 읽을 길이
+  uint8_t ret = aes132m_execute(
+      AES132_BLOCK_READ, // [OpCode] BlockRead (0x02): 블록 읽기 명령
+      0,                 // [Mode] 0: 메모리 직접 읽기
+      addr,              // [Param1] Address: 읽을 주소 (16바이트)
+      16,                // [Param2] Length: 읽을 데이터 길이
+      0,                 // [Data1 Length] 0: 입력 데이터 없음
+      NULL,              // [Data1 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data2 Length] 0: 입력 데이터 없음
+      NULL,              // [Data2 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data3 Length] 0: 입력 데이터 없음
+      NULL,              // [Data3 Pointer] NULL: 입력 데이터 없음
+      0,                 // [Data4 Length] 0: 입력 데이터 없음
+      NULL,              // [Data4 Pointer] NULL: 입력 데이터 없음
+      tx_buf,            // [TX Buffer] 송신 버퍼 포인터
+      rx_buf             // [RX Buffer] 수신 버퍼 포인터
+  );
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     memcpy(data, &rx_buf[AES132_RESPONSE_INDEX_DATA], 16);
   }
