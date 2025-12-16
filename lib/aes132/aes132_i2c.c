@@ -19,41 +19,31 @@
  *  \date 	June 16, 2011
  */
 
-#include <stdint.h>                    //!< C type definitions
+#include "aes132_i2c.h" //!< I2C library definitions
+#include "i2c_phys.h"   //!< I2C physical layer (from i2c_phys library)
+#include <stdint.h>     //!< C type definitions
 #include <string.h>
-#include "aes132_i2c.h"                //!< I2C library definitions
-#include "i2c_phys.h"                  //!< I2C physical layer (from i2c_phys library)
 
 /** \brief These enumerations are flags for I2C read or write addressing. */
 enum aes132_i2c_read_write_flag {
-	I2C_WRITE = (uint8_t) 0x00,	//!< write command id
-	I2C_READ  = (uint8_t) 0x01   //!< read command id
+  I2C_WRITE = (uint8_t)0x00, //!< write command id
+  I2C_READ = (uint8_t)0x01   //!< read command id
 };
 
 /** \brief This function initializes and enables the I2C hardware peripheral. */
-void aes132p_enable_interface(void)
-{
-	i2c_enable_phys();
-}
-
+void aes132p_enable_interface(void) { i2c_enable_phys(); }
 
 /** \brief This function disables the I2C hardware peripheral. */
-void aes132p_disable_interface(void)
-{
-	i2c_disable_phys();
-}
-
+void aes132p_disable_interface(void) { i2c_disable_phys(); }
 
 /** \brief This function selects a I2C AES132 device.
  *
  * @param[in] device_id I2C address
  * @return always success
  */
-uint8_t aes132p_select_device(uint8_t device_id)
-{
-	return i2c_select_device_phys(device_id);
+uint8_t aes132p_select_device(uint8_t device_id) {
+  return i2c_select_device_phys(device_id);
 }
-
 
 /** \brief This function writes bytes to the device.
  * \param[in] count number of bytes to write
@@ -61,30 +51,31 @@ uint8_t aes132p_select_device(uint8_t device_id)
  * \param[in] data pointer to tx buffer
  * \return status of the operation
  */
-uint8_t aes132p_write_memory_physical(uint8_t count, uint16_t word_address, uint8_t *data)
-{
-	// In both, big-endian and little-endian systems, we send MSB first.
-	uint8_t word_address_buffer[2] = {(uint8_t) (word_address >> 8), (uint8_t) (word_address & 0xFF)};
-	uint8_t data_buffer[2+count];
-			memcpy(&data_buffer[0], word_address_buffer, 2);
-			memcpy(&data_buffer[2], data, count);
-	uint8_t aes132_lib_return = i2c_send_slave_address(I2C_WRITE);
-	if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
-		// There is no need to create a Stop condition, since function
-		// aes132p_send_slave_address does that already in case of error.
-		return aes132_lib_return;
-		
-	aes132_lib_return = i2c_send_bytes(sizeof(data_buffer), (uint8_t *) data_buffer);
-	if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
-		// Don't override the return code from i2c_send_bytes in case of error.
-		(void) i2c_send_stop();
-		return aes132_lib_return;
-	}
-	
-	// success
-	return i2c_send_stop();
-}
+uint8_t aes132p_write_memory_physical(uint8_t count, uint16_t word_address,
+                                      uint8_t *data) {
+  // In both, big-endian and little-endian systems, we send MSB first.
+  uint8_t word_address_buffer[2] = {(uint8_t)(word_address >> 8),
+                                    (uint8_t)(word_address & 0xFF)};
+  uint8_t data_buffer[2 + count];
+  memcpy(&data_buffer[0], word_address_buffer, 2);
+  memcpy(&data_buffer[2], data, count);
+  uint8_t aes132_lib_return = i2c_send_slave_address(I2C_WRITE);
+  if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
+    // There is no need to create a Stop condition, since function
+    // aes132p_send_slave_address does that already in case of error.
+    return aes132_lib_return;
 
+  aes132_lib_return =
+      i2c_send_bytes(sizeof(data_buffer), (uint8_t *)data_buffer);
+  if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
+    // Don't override the return code from i2c_send_bytes in case of error.
+    (void)i2c_send_stop();
+    return aes132_lib_return;
+  }
+
+  // success
+  return i2c_send_stop();
+}
 
 /** \brief This function reads bytes from the device.
  * \param[in] size number of bytes to read
@@ -92,62 +83,52 @@ uint8_t aes132p_write_memory_physical(uint8_t count, uint16_t word_address, uint
  * \param[out] data pointer to rx buffer
  * \return status of the operation
  */
-uint8_t aes132p_read_memory_physical(uint8_t size, uint16_t word_address, uint8_t *data)
-{
-	// Random read:
-	// Start, I2C address with write bit, word address,
-	// Start, I2C address with read bit
+uint8_t aes132p_read_memory_physical(uint8_t size, uint16_t word_address,
+                                     uint8_t *data) {
+  uint8_t word_address_buffer[2] = {(uint8_t)(word_address >> 8),
+                                    (uint8_t)(word_address & 0xFF)};
+  uint8_t aes132_lib_return = i2c_send_slave_address(I2C_WRITE);
+  if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
+    return aes132_lib_return;
 
-	// In both, big-endian and little-endian systems, we send MSB first.
-	const uint8_t word_address_buffer[2] = {(uint8_t) (word_address >> 8), (uint8_t) (word_address & 0x00FF)};
+  aes132_lib_return =
+      i2c_send_bytes(sizeof(word_address_buffer), word_address_buffer);
+  if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
+    (void)i2c_send_stop();
+    return aes132_lib_return;
+  }
 
-	uint8_t aes132_lib_return = i2c_send_slave_address(I2C_WRITE);
-	if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
-		// There is no need to create a Stop condition, since function
-		// aes132p_send_slave_address does that already in case of error.
-		return aes132_lib_return;
+  aes132_lib_return = i2c_send_slave_address(I2C_READ);
+  if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
+    return aes132_lib_return;
 
-	aes132_lib_return = i2c_send_bytes(2, (uint8_t *) word_address_buffer);
-	if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
-		// Don't override the return code from i2c_send_bytes in case of error.
-		(void) i2c_send_stop();
-		return aes132_lib_return;
-	}
-
-	aes132_lib_return = i2c_send_slave_address(I2C_READ);
-	if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS)
-		return aes132_lib_return;
-
-	return i2c_receive_bytes(size, data);
+  return i2c_receive_bytes(size, data);
 }
-
-
 /** \brief This function resynchronizes communication.
  * \return status of the operation
  */
-uint8_t aes132p_resync_physical(void)
-{
-	uint8_t nine_clocks = 0xFF;
-	uint8_t n_retries = 2;
-	uint8_t aes132_lib_return;
+uint8_t aes132p_resync_physical(void) {
+  uint8_t nine_clocks = 0xFF;
+  uint8_t n_retries = 2;
+  uint8_t aes132_lib_return;
 
-	do {
-		aes132_lib_return = i2c_send_start();
-		if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
-			// If a device is holding SDA or SCL, disabling and
-			// re-enabling the I2C peripheral might help.
-			i2c_disable_phys();
-			i2c_enable_phys();
-		}
-		if (--n_retries == 0)
-			return aes132_lib_return;
+  do {
+    aes132_lib_return = i2c_send_start();
+    if (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS) {
+      // If a device is holding SDA or SCL, disabling and
+      // re-enabling the I2C peripheral might help.
+      i2c_disable_phys();
+      i2c_enable_phys();
+    }
+    if (--n_retries == 0)
+      return aes132_lib_return;
 
-		// Retry creating a Start condition if it failed.
-	} while(aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS);
+    // Retry creating a Start condition if it failed.
+  } while (aes132_lib_return != AES132_FUNCTION_RETCODE_SUCCESS);
 
-	// Do not evaluate the return code which most likely indicates error,
-	// since nine_clocks is unlikely to be acknowledged.
-	(void) i2c_send_bytes(1, &nine_clocks);
+  // Do not evaluate the return code which most likely indicates error,
+  // since nine_clocks is unlikely to be acknowledged.
+  (void)i2c_send_bytes(1, &nine_clocks);
 
-	return i2c_send_stop();
+  return i2c_send_stop();
 }
