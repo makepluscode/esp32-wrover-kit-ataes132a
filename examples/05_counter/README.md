@@ -12,11 +12,11 @@ Counter 명령어는 AES132의 4개의 독립적인 카운터 슬롯을 관리�
 
 1. **카운터 슬롯**
    - AES132는 총 4개의 독립적인 카운터 슬롯을 제공합니다 (Counter ID: 0-3)
-   - 각 카운터는 32비트(4바이트) 값을 저장합니다
+   - 각 카운터는 32비트(4바이트) 값을 저장합니다 (초기화되지 않은 경우 `0xFFFFFFFF`일 수 있음)
    - 카운터 값은 0부터 시작하여 최대값까지 증가할 수 있습니다
 
 2. **카운터 모드**
-   - **Mode 0**: 카운터 값 읽기
+   - **Mode 0**: 카운터 값 읽기 (참고: Unlocked 상태에서는 Direct Memory Read 권장)
    - **Mode 1**: 카운터 값 증가
 
 3. **카운터 제한**
@@ -103,34 +103,33 @@ Byte 3: LSB (Least Significant Byte)
 - 최대값: 4,294,967,295 (0xFFFFFFFF)
 - 최대값에 도달하면 더 이상 증가할 수 없음
 
-### 카운터 읽기 (Mode 0)
+### 카운터 읽기 (Direct Memory Read)
 
-**명령어 시퀀스**:
-1. Counter 명령어 전송 (Mode = 0x00)
-2. Parameter 1: Counter ID (0-3)
-3. Parameter 2: 0 (읽기 모드에서는 사용 안 함)
-4. 응답에서 카운터 값 수신 (4바이트)
+**설명**:
+디바이스가 UNLOCKED 상태이거나 적절한 권한이 있는 경우, `Counter` 명령어 대신 메모리 직접 읽기 방식을 사용하는 것이 더 안정적일 수 있습니다 (특히 `0x50` 오류 발생 시).
 
-**응답 데이터**:
-- 응답 패킷의 Data 필드에 4바이트 카운터 값이 포함됨
-- 빅엔디안 형식으로 저장됨
+**메모리 주소**:
+- Counter 0: `0xF060`
+- Counter 1: `0xF064`
+- Counter 2: `0xF068`
+- Counter 3: `0xF06C`
 
-### 카운터 증가 (Mode 1)
+**읽기 과정**:
+1. `aes132m_read_memory` 함수를 사용하여 해당 주소에서 4바이트를 읽습니다.
+2. 읽어온 데이터는 Big Endian 형식이므로, 이를 32비트 정수로 변환합니다.
 
-**명령어 시퀀스**:
-1. Counter 명령어 전송 (Mode = 0x01)
-2. Parameter 1: Counter ID (0-3)
-3. Parameter 2: 증가값 (1-255)
-4. 응답에서 증가된 카운터 값 수신 (4바이트)
+### 카운터 증가 (Direct Read-Modify-Write)
 
-**증가 동작**:
-- 현재 카운터 값에 Parameter 2의 값을 더함
-- 증가 후 새로운 카운터 값이 응답으로 반환됨
-- 최대값에 도달하면 `0x10` (CountError) 오류 반환
+**설명**:
+Unlocked 상태에서는 `Counter` 명령어 대신 Direct Memory Access를 통해 카운터를 증가시킬 수 있습니다. 이 방식은 `Counter` 명령어가 지원되지 않거나 오류가 발생할 때 유효합니다.
 
-**증가값 제한**:
-- 한 번에 최대 255까지 증가 가능
-- 더 큰 값을 증가시키려면 여러 번 호출해야 함
+**증가 과정**:
+1. `read_counter` (Direct Read)를 통해 현재 값을 읽습니다.
+2. 현재 값에 증가분을 더하여 새로운 값을 계산합니다.
+3. `aes132m_write_memory` (Direct Write)를 통해 새로운 값을 카운터 주소에 씁니다.
+
+### 카운터 초기화 (Reset)
+예제 실행 시 카운터가 `0xFFFFFFFF` 상태인 경우 더 이상 증가할 수 없으므로, Unlocked 상태의 이점을 활용하여 `0x00000000`으로 초기화하는 과정이 추가되었습니다.
 
 ### 보안 고려사항
 
@@ -179,18 +178,14 @@ Example 05: Counter
 AES132 initialized successfully
 
 === Example 1: Read All Counter Values ===
-Debug Counter 0: ret=0x50, Count=4, Status=0x50, Data=0x04 0x50 0x99 0xE3
-Error: Counter command failed with code 0x50
-Failed to read Counter 0
-Debug Counter 1: ret=0x50, Count=4, Status=0x50, Data=0x04 0x50 0x99 0xE3
-Error: Counter command failed with code 0x50
-Failed to read Counter 1
-Debug Counter 2: ret=0x50, Count=4, Status=0x50, Data=0x04 0x50 0x99 0xE3
-Error: Counter command failed with code 0x50
-Failed to read Counter 2
-Debug Counter 3: ret=0x50, Count=4, Status=0x50, Data=0x04 0x50 0x99 0xE3
-Error: Counter command failed with code 0x50
-Failed to read Counter 3
+Debug Counter 0: Direct Read Success. Addr=0xF060, Value=0
+Counter 0: 0 (0x0)
+Debug Counter 1: Direct Read Success. Addr=0xF064, Value=0
+Counter 1: 0 (0x0)
+Debug Counter 2: Direct Read Success. Addr=0xF068, Value=0
+Counter 2: 0 (0x0)
+Debug Counter 3: Direct Read Success. Addr=0xF06C, Value=0
+Counter 3: 0 (0x0)
 ```
 
 ## 출력 결과 상세 분석
@@ -216,19 +211,13 @@ Failed to read Counter 3
 - 이는 Counter 명령어가 파싱 단계에서 실패했음을 의미합니다
 - 디바이스가 Counter 명령어를 인식하지 못하거나 지원하지 않는 것으로 보입니다
 
-### 3. 가능한 원인 및 해결 방법
+### 3. 해결된 문제 (0x50 Parse Error)
 
-**원인 1: Counter 기능 미지원**
-- 일부 ATAES132A 모델에서는 Counter 기능이 지원되지 않을 수 있습니다
-- 해결: 디바이스 모델 및 데이터시트 확인
-
-**원인 2: Counter 기능 비활성화**
-- Configuration Memory에서 Counter 기능이 비활성화되어 있을 수 있습니다
-- 해결: Configuration Memory 확인 및 Counter 기능 활성화 (권한 필요)
-
-**원인 3: 디바이스 구성 문제**
-- 디바이스가 특정 구성 모드에 있어 Counter 명령어를 지원하지 않을 수 있습니다
-- 해결: 디바이스 리셋 또는 재초기화
+**증상**: `aes132_counter` 명령어 사용 시 `0x50` (Parse Error) 발생 또는 `0xFFFFFFFF` 상태에서 증가 불가.
+**해결**: 
+1. `aes132m_read_memory`를 사용한 Direct Read 구현.
+2. `aes132m_write_memory`를 사용한 Direct Write (Read-Modify-Write) 방식의 증가 구현.
+3. 예제 시작 시 모든 카운터를 `0`으로 초기화하여 `0xFFFFFFFF` 상태 문제 해결.
 
 ### 4. 정상 동작 시 예상 출력
 
@@ -313,16 +302,19 @@ Note: Counter values are stored in non-volatile memory
 ### 주요 함수
 
 1. **`read_counter()`**
-   - Counter 명령어의 Mode 0을 사용하여 카운터 값을 읽습니다
-   - Parameter 1: Counter ID (0-3)
-   - Parameter 2: 0 (읽기 모드)
-   - 성공 시 카운터 값을 반환합니다 (빅엔디안 형식)
+   - **변경됨**: 기존 `aes132_counter` 명령어가 `0x50` 오류를 반환함에 따라, `aes132m_read_memory`를 사용하는 방식으로 변경되었습니다.
+   - `0xF060` (Counter 0) ~ `0xF06C` (Counter 3) 주소에서 4바이트를 직접 읽습니다.
+   - 읽은 데이터를 Big Endian에서 Host Endian으로 변환합니다.
 
-2. **`increment_counter()`**
-   - Counter 명령어의 Mode 1을 사용하여 카운터 값을 증가시킵니다
-   - Parameter 1: Counter ID (0-3)
-   - Parameter 2: 증가값 (1-255)
-   - 성공 시 증가된 카운터 값을 반환합니다 (선택사항)
+2. **`reset_counters()`**
+   - **신규 추가**: 모든 카운터(0-3)를 `0x00`으로 초기화합니다.
+   - `aes132m_write_memory`를 사용하여 `0xF060` ~ `0xF06C` 영역을 `0`으로 채웁니다.
+   - 예제 실행 초기에 호출되어 카운터가 동작 가능한 상태임을 보장합니다.
+
+3. **`increment_counter()`**
+   - **변경됨**: 기존 `aes132_counter` (Mode 1) 대신 Direct Write 방식을 사용합니다.
+   - 현재 값을 읽고(Read), 증가분을 더한 뒤(Modify), 다시 메모리에 씁니다(Write).
+   - Unlocked 상태에서 안정적인 카운터 증가를 보장합니다.
 
 ### 예제 시나리오
 

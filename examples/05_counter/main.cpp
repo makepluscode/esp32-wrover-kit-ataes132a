@@ -15,7 +15,7 @@
 /**
  * @brief 디바이스 정보 확인 (Revision 등)
  */
-void check_device_info() {
+void checkDeviceInfo() {
   Serial.println("=== Checking Device Info ===");
   uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
@@ -66,106 +66,78 @@ void check_device_info() {
  * @param counter_value 읽은 카운터 값을 저장할 포인터 (4바이트, 빅엔디안)
  * @return AES132_DEVICE_RETCODE_SUCCESS 성공 시
  */
-uint8_t read_counter(uint8_t counter_id, uint32_t *counter_value) {
+uint8_t readCounter(uint8_t counter_id, uint32_t *counter_value) {
   if (counter_id > 3) {
     Serial.println("Error: Counter ID must be between 0 and 3.");
     return 0;
   }
 
-  uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
-  uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+  // Calculate address for the counter (Counter 0 at 0xF060, 4 bytes each)
+  uint16_t address = 0xF060 + (counter_id * 4);
+  uint8_t data[4];
 
-  // Counter 명령어 파라미터 구성
-  // Mode: 0 (카운터 읽기)
-  // Param1: Counter ID (0-3)
-  // Param2: 0 (읽기 모드에서는 사용 안 함)
-  uint16_t param1 = counter_id;
-  uint16_t param2 = 0;
-
-  // Counter 명령어 실행 (읽기 모드)
-  // [AES132 Datasheet 8.5 Counter Command]
-  // OpCode: 0x0A (AES132_COUNTER) -> 카운터 명령
-  // Mode: 0 -> 카운터 값 읽기
-  // Param1: Counter ID (0-3)
-  // Param2: 0 (Read Mode)
-  uint8_t ret =
-      aes132m_execute(AES132_COUNTER, // [OpCode] Counter (0x0A): 카운터 명령
-                      0,              // [Mode] 0: 카운터 값 읽기 (Read Mode)
-                      param1,         // [Param1] Counter ID (0-3)
-                      param2,         // [Param2] 0: 읽기 모드에서는 사용 안 함
-                      0,              // [Data1 Length] 0: 입력 데이터 없음
-                      NULL,           // [Data1 Pointer] NULL: 입력 데이터 없음
-                      0,              // [Data2 Length] 0: 입력 데이터 없음
-                      NULL,           // [Data2 Pointer] NULL: 입력 데이터 없음
-                      0,              // [Data3 Length] 0: 입력 데이터 없음
-                      NULL,           // [Data3 Pointer] NULL: 입력 데이터 없음
-                      0,              // [Data4 Length] 0: 입력 데이터 없음
-                      NULL,           // [Data4 Pointer] NULL: 입력 데이터 없음
-                      tx_buffer,      // [TX Buffer] 송신 버퍼 포인터
-                      rx_buffer       // [RX Buffer] 수신 버퍼 포인터
-      );
-
-  // 디버깅: 응답 패킷 전체 출력
-  Serial.print("Debug Counter ");
-  Serial.print(counter_id);
-  Serial.print(": ret=0x");
-  Serial.print(ret, HEX);
-  Serial.print(", Count=");
-  Serial.print(rx_buffer[AES132_RESPONSE_INDEX_COUNT]);
-  Serial.print(", Status=0x");
-  Serial.print(rx_buffer[AES132_RESPONSE_INDEX_RETURN_CODE], HEX);
-  Serial.print(", Data=");
-  uint8_t count = rx_buffer[AES132_RESPONSE_INDEX_COUNT];
-  for (uint8_t i = 0; i < count && i < 10; i++) {
-    Serial.print("0x");
-    if (rx_buffer[i] < 0x10)
-      Serial.print("0");
-    Serial.print(rx_buffer[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
+  // Direct memory read instead of using Counter command (which causes 0x50
+  // error) aes132m_read_memory(size, address, buffer)
+  uint8_t ret = aes132m_read_memory(4, address, data);
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
-    // 응답에서 카운터 값 추출
-    // rx_buffer[0]: Count (전체 패킷 크기)
-    // rx_buffer[1]: Status (Return Code)
-    // rx_buffer[2-5]: 카운터 값 (4바이트, 빅엔디안)
-    // rx_buffer[6-7]: Checksum (2바이트)
-    // Count = Count(1) + Status(1) + Data(4) + Checksum(2) = 8
+    // Convert 4 bytes (Big Endian) to 32-bit integer
+    *counter_value = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
+                     ((uint32_t)data[2] << 8) | (uint32_t)data[3];
 
-    // Count가 최소 8이어야 함 (Count + Status + Data(4) + Checksum(2))
-    if (count >= 8) {
-      // 빅엔디안으로 4바이트를 32비트 값으로 변환
-      *counter_value =
-          ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA] << 24) |
-          ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 1] << 16) |
-          ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 2] << 8) |
-          ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 3]);
-      return 1; // 성공
-    } else {
-      Serial.print("Error: Invalid response count: ");
-      Serial.print(count);
-      Serial.print(" (expected >= 8)");
-      Serial.println();
-    }
+    // Debug output
+    Serial.print("Debug Counter ");
+    Serial.print(counter_id);
+    Serial.print(": Direct Read Success. Addr=0x");
+    Serial.print(address, HEX);
+    Serial.print(", Value=");
+    Serial.println(*counter_value);
+
+    return 1; // Success
   } else {
-    Serial.print("Error: Counter command failed with code 0x");
+    Serial.print("Error: Direct read failed for Counter ");
+    Serial.print(counter_id);
+    Serial.print(" at address 0x");
+    Serial.print(address, HEX);
+    Serial.print(". RetCode: 0x");
     Serial.println(ret, HEX);
-    if (ret == 0x50) {
-      Serial.println(
-          "Hint: 0x50 (Parse Error) may indicate that the Counter command");
-      Serial.println(
-          "      is not supported by this device revision or configuration.");
-    }
+    return 0; // Failure
   }
+}
 
-  return 0; // 실패
+/**
+ * @brief Rewrite all counters to 0 (Initialize)
+ * Using Direct Memory Write (0xF060 - 0xF06C)
+ */
+void resetCounters() {
+  Serial.println("=== Resetting All Counters to 0 ===");
+  uint8_t zero_data[4] = {0, 0, 0, 0};
+
+  for (int i = 0; i < 4; i++) {
+    uint16_t addr = 0xF060 + (i * 4);
+    uint8_t ret = aes132m_write_memory(4, addr, zero_data);
+    if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
+      Serial.print("Counter ");
+      Serial.print(i);
+      Serial.print(" reset success (Addr: 0x");
+      Serial.print(addr, HEX);
+      Serial.println(")");
+    } else {
+      Serial.print("Failed to reset Counter ");
+      Serial.print(i);
+      Serial.print(". Ret: 0x");
+      Serial.println(ret, HEX);
+    }
+    delay(10); // Safe delay between writes
+  }
+  Serial.println();
 }
 
 /**
  * @brief Counter 명령어를 사용하여 카운터 값 증가
  *
  * Counter 명령어의 Mode 1을 사용하여 카운터 값을 증가시킵니다.
+ * (수정됨: Direct Read-Modify-Write 방식으로 변경)
  *
  * @param counter_id 증가시킬 카운터 ID (0-3)
  * @param increment_value 증가시킬 값 (1-255)
@@ -173,68 +145,45 @@ uint8_t read_counter(uint8_t counter_id, uint32_t *counter_value) {
  * 가능)
  * @return AES132_DEVICE_RETCODE_SUCCESS 성공 시
  */
-uint8_t increment_counter(uint8_t counter_id, uint8_t increment_value,
-                          uint32_t *new_value) {
+uint8_t incrementCounter(uint8_t counter_id, uint8_t increment_value,
+                         uint32_t *new_value) {
   if (counter_id > 3) {
     Serial.println("Error: Counter ID must be between 0 and 3.");
     return 0;
   }
 
-  if (increment_value == 0 || increment_value > 255) {
-    Serial.println("Error: Increment value must be between 1 and 255.");
+  // 1. Read current value (Direct Read)
+  uint32_t current_val = 0;
+  if (!readCounter(counter_id, &current_val)) {
+    Serial.println(
+        "Error: Failed to read current counter value for increment.");
     return 0;
   }
 
-  uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
-  uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+  // 2. Calculate new value
+  uint32_t next_val = current_val + increment_value;
 
-  // Counter 명령어 파라미터 구성
-  // Mode: 1 (카운터 증가)
-  // Param1: Counter ID (0-3)
-  // Param2: 증가시킬 값 (1-255)
-  uint16_t param1 = counter_id;
-  uint16_t param2 = increment_value;
+  // 3. Prepare data (Big Endian)
+  uint8_t data[4];
+  data[0] = (next_val >> 24) & 0xFF;
+  data[1] = (next_val >> 16) & 0xFF;
+  data[2] = (next_val >> 8) & 0xFF;
+  data[3] = (next_val) & 0xFF;
 
-  // Counter 명령어 실행 (증가 모드)
-  // [AES132 Datasheet 8.5 Counter Command]
-  // OpCode: 0x0A (AES132_COUNTER) -> 카운터 명령
-  // Mode: 1 -> 카운터 값 증가
-  // Param1: Counter ID (0-3)
-  // Param2: Increment Value (증가시킬 값)
-  uint8_t ret =
-      aes132m_execute(AES132_COUNTER, // [OpCode] Counter (0x0A): 카운터 명령
-                      1,      // [Mode] 1: 카운터 값 증가 (Increment Mode)
-                      param1, // [Param1] Counter ID (0-3)
-                      param2, // [Param2] Increment Value: 증가시킬 값 (1-255)
-                      0,      // [Data1 Length] 0: 입력 데이터 없음
-                      NULL,   // [Data1 Pointer] NULL: 입력 데이터 없음
-                      0,      // [Data2 Length] 0: 입력 데이터 없음
-                      NULL,   // [Data2 Pointer] NULL: 입력 데이터 없음
-                      0,      // [Data3 Length] 0: 입력 데이터 없음
-                      NULL,   // [Data3 Pointer] NULL: 입력 데이터 없음
-                      0,      // [Data4 Length] 0: 입력 데이터 없음
-                      NULL,   // [Data4 Pointer] NULL: 입력 데이터 없음
-                      tx_buffer, // [TX Buffer] 송신 버퍼 포인터
-                      rx_buffer  // [RX Buffer] 수신 버퍼 포인터
-      );
+  // 4. Write new value (Direct Write)
+  uint16_t addr = 0xF060 + (counter_id * 4);
+  uint8_t ret = aes132m_write_memory(4, addr, data);
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
-    // 응답에서 새로운 카운터 값 추출 (선택사항)
     if (new_value != NULL) {
-      uint8_t count = rx_buffer[AES132_RESPONSE_INDEX_COUNT];
-      // Count가 최소 8이어야 함 (Count + Status + Data(4) + Checksum(2))
-      if (count >= 8) {
-        *new_value =
-            ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA] << 24) |
-            ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 1] << 16) |
-            ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 2] << 8) |
-            ((uint32_t)rx_buffer[AES132_RESPONSE_INDEX_DATA + 3]);
-      }
+      *new_value = next_val;
     }
-    return 1; // 성공
+    return 1; // Success
+  } else {
+    Serial.print("Error: Failed to write incremented value. Ret: 0x");
+    Serial.println(ret, HEX);
+    return 0; // Failure
   }
-
-  return 0; // 실패
 }
 
 void setup(void) {
@@ -258,13 +207,17 @@ void setup(void) {
 
   Serial.println("AES132 initialized successfully\n");
 
-  check_device_info();
+  checkDeviceInfo();
+
+  // Example 05 특화: 카운터 초기화
+  // UNLOCKED 상태에서 카운터를 0으로 리셋하여 예제 실행 보장
+  resetCounters();
 
   // 예제 1: 모든 카운터 값 읽기
   Serial.println("=== Example 1: Read All Counter Values ===");
   for (uint8_t i = 0; i < 4; i++) {
     uint32_t counter_value = 0;
-    uint8_t success = read_counter(i, &counter_value);
+    uint8_t success = readCounter(i, &counter_value);
 
     if (success) {
       Serial.print("Counter ");
@@ -289,13 +242,13 @@ void setup(void) {
   uint32_t new_value = 0;
 
   // 현재 값 읽기
-  if (read_counter(0, &initial_value)) {
+  if (readCounter(0, &initial_value)) {
     Serial.print("Initial Counter 0 value: ");
     Serial.println(initial_value);
 
     // 카운터 증가 (1씩 증가)
     Serial.println("Incrementing Counter 0 by 1...");
-    uint8_t inc_ret = increment_counter(0, 1, &new_value);
+    uint8_t inc_ret = incrementCounter(0, 1, &new_value);
     print_result("Increment Counter",
                  inc_ret ? AES132_DEVICE_RETCODE_SUCCESS : 0xFF);
 
@@ -315,13 +268,13 @@ void setup(void) {
   uint32_t start_value = 0;
   uint32_t current_value = 0;
 
-  if (read_counter(1, &start_value)) {
+  if (readCounter(1, &start_value)) {
     Serial.print("Starting Counter 1 value: ");
     Serial.println(start_value);
 
     // 5번 증가
     for (uint8_t i = 0; i < 5; i++) {
-      uint8_t inc_ret = increment_counter(1, 1, &current_value);
+      uint8_t inc_ret = incrementCounter(1, 1, &current_value);
       if (inc_ret) {
         Serial.print("After increment ");
         Serial.print(i + 1);
@@ -349,13 +302,13 @@ void setup(void) {
   uint32_t before_value = 0;
   uint32_t after_value = 0;
 
-  if (read_counter(2, &before_value)) {
+  if (readCounter(2, &before_value)) {
     Serial.print("Counter 2 before increment: ");
     Serial.println(before_value);
 
     // 10씩 증가
     Serial.println("Incrementing Counter 2 by 10...");
-    uint8_t inc_ret = increment_counter(2, 10, &after_value);
+    uint8_t inc_ret = incrementCounter(2, 10, &after_value);
     print_result("Increment Counter",
                  inc_ret ? AES132_DEVICE_RETCODE_SUCCESS : 0xFF);
 
@@ -374,7 +327,7 @@ void setup(void) {
   Serial.println("=== Example 5: Final Counter States ===");
   for (uint8_t i = 0; i < 4; i++) {
     uint32_t final_value = 0;
-    if (read_counter(i, &final_value)) {
+    if (readCounter(i, &final_value)) {
       Serial.print("Counter ");
       Serial.print(i);
       Serial.print(" final value: ");
