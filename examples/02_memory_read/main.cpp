@@ -21,8 +21,8 @@
  * @param data 읽은 데이터를 저장할 버퍼
  * @return AES132_DEVICE_RETCODE_SUCCESS 성공 시
  */
-uint8_t read_memory_block(uint8_t zone_id, uint8_t block_id, uint8_t length,
-                          uint8_t *data) {
+uint8_t readMemoryBlock(uint8_t zone_id, uint8_t block_id, uint8_t length,
+                        uint8_t *data) {
   uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
 
@@ -99,7 +99,7 @@ void setup(void) {
   // 예제 1: Zone 0, Block 0에서 16바이트 읽기
   Serial.println("=== Example 1: Read Zone 0, Block 0 (16 bytes) ===");
   uint8_t data1[16] = {0};
-  uint8_t bytes_read = read_memory_block(0, 0, 16, data1);
+  uint8_t bytes_read = readMemoryBlock(0, 0, 16, data1);
 
   if (bytes_read > 0) {
     Serial.print("Successfully read ");
@@ -115,7 +115,7 @@ void setup(void) {
   // 예제 2: Zone 0, Block 1에서 8바이트 읽기
   Serial.println("=== Example 2: Read Zone 0, Block 1 (8 bytes) ===");
   uint8_t data2[8] = {0};
-  bytes_read = read_memory_block(0, 1, 8, data2);
+  bytes_read = readMemoryBlock(0, 1, 8, data2);
 
   if (bytes_read > 0) {
     Serial.print("Successfully read ");
@@ -132,7 +132,7 @@ void setup(void) {
       "=== Example 3: Read Multiple Blocks (Zone 0, Blocks 0-2) ===");
   for (uint8_t block = 0; block < 3; block++) {
     uint8_t block_data[16] = {0};
-    bytes_read = read_memory_block(0, block, 16, block_data);
+    bytes_read = readMemoryBlock(0, block, 16, block_data);
 
     if (bytes_read > 0) {
       Serial.print("Block ");

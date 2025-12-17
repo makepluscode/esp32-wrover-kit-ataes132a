@@ -22,7 +22,7 @@
  * @param block_id Block ID (0-127, 각 Zone당 128개 블록)
  * @return Word Address
  */
-uint16_t calculate_word_address(uint8_t zone_id, uint8_t block_id) {
+uint16_t calculateWordAddress(uint8_t zone_id, uint8_t block_id) {
   // 각 Zone은 128개 블록 (2KB = 2048 bytes / 16 bytes per block = 128 blocks)
   return ((uint16_t)zone_id * 128) + block_id;
 }
@@ -36,15 +36,15 @@ uint16_t calculate_word_address(uint8_t zone_id, uint8_t block_id) {
  * @param length 데이터 길이 (최대 16바이트, 블록 크기)
  * @return AES132_DEVICE_RETCODE_SUCCESS 성공 시
  */
-uint8_t write_memory_block(uint8_t zone_id, uint8_t block_id,
-                           const uint8_t *data, uint8_t length) {
+uint8_t writeMemoryBlock(uint8_t zone_id, uint8_t block_id, const uint8_t *data,
+                         uint8_t length) {
   // 블록 크기 제한 확인
   if (length > 16) {
     length = 16;
   }
 
   // Word Address 계산
-  uint16_t word_address = calculate_word_address(zone_id, block_id);
+  uint16_t word_address = calculateWordAddress(zone_id, block_id);
 
   // 메모리 쓰기 실행
   uint8_t ret = aes132m_write_memory(length, word_address, (uint8_t *)data);
@@ -61,8 +61,8 @@ uint8_t write_memory_block(uint8_t zone_id, uint8_t block_id,
  * @param length 읽을 바이트 수
  * @return 읽은 바이트 수
  */
-uint8_t read_memory_block(uint8_t zone_id, uint8_t block_id, uint8_t *data,
-                          uint8_t length) {
+uint8_t readMemoryBlock(uint8_t zone_id, uint8_t block_id, uint8_t *data,
+                        uint8_t length) {
   uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
 
@@ -137,7 +137,7 @@ void setup(void) {
   Serial.println("Writing data to Zone 0, Block 0...");
   print_hex("Data to write: ", test_data1, 13);
 
-  ret = write_memory_block(0, 0, test_data1, 13);
+  ret = writeMemoryBlock(0, 0, test_data1, 13);
   print_result("Write Memory", ret);
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
@@ -145,7 +145,7 @@ void setup(void) {
     delay(100); // 쓰기 완료 대기
 
     uint8_t read_back1[16] = {0};
-    uint8_t bytes_read = read_memory_block(0, 0, read_back1, 16);
+    uint8_t bytes_read = readMemoryBlock(0, 0, read_back1, 16);
 
     if (bytes_read > 0) {
       print_hex("Data read back: ", read_back1, bytes_read);
@@ -178,14 +178,14 @@ void setup(void) {
     Serial.print(block);
     Serial.println("...");
 
-    ret = write_memory_block(0, block, test_data2, 16);
+    ret = writeMemoryBlock(0, block, test_data2, 16);
     print_result("Write", ret);
 
     if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
       delay(100);
 
       uint8_t read_back2[16] = {0};
-      uint8_t bytes_read = read_memory_block(0, block, read_back2, 16);
+      uint8_t bytes_read = readMemoryBlock(0, block, read_back2, 16);
 
       if (bytes_read > 0) {
         Serial.print("Block ");
@@ -205,14 +205,14 @@ void setup(void) {
   Serial.println("Writing 8 bytes to Zone 0, Block 5...");
   print_hex("Data to write: ", test_data3, 8);
 
-  ret = write_memory_block(0, 5, test_data3, 8);
+  ret = writeMemoryBlock(0, 5, test_data3, 8);
   print_result("Write", ret);
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     delay(100);
 
     uint8_t read_back3[16] = {0};
-    uint8_t bytes_read = read_memory_block(0, 5, read_back3, 16);
+    uint8_t bytes_read = readMemoryBlock(0, 5, read_back3, 16);
 
     if (bytes_read > 0) {
       Serial.println("Reading entire block (16 bytes):");

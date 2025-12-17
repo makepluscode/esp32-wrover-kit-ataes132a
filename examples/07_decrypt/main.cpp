@@ -29,7 +29,7 @@ uint8_t stored_nonce[12];
 
 // --- Helper: Load Nonce (Fixed Mode 0) ---
 // 저장된(stored_nonce) 값을 Chip의 TempKey로 로드합니다.
-bool load_nonce_fixed() {
+bool loadNonceFixed() {
   Serial.println("Loading Stored Nonce (Fixed Mode)...");
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
@@ -67,8 +67,8 @@ bool load_nonce_fixed() {
 }
 
 // --- Helper: Encrypt Block (Needed for Self-Test) ---
-bool encrypt_block(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
-                   uint8_t *out_ciphertext) {
+bool encryptBlock(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
+                  uint8_t *out_ciphertext) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
 
@@ -106,8 +106,8 @@ bool encrypt_block(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
 // --- Helper: Decrypt Block (Corrected for AES-CCM) ---
 // Requires: KeyID, MAC(16), Ciphertext(16)
 // Returns: Plaintext(16)
-bool decrypt_block(uint8_t key_id, const uint8_t *mac,
-                   const uint8_t *ciphertext, uint8_t *out_plaintext) {
+bool decryptBlock(uint8_t key_id, const uint8_t *mac, const uint8_t *ciphertext,
+                  uint8_t *out_plaintext) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
 
@@ -180,7 +180,7 @@ void setup() {
     stored_nonce[i] = i;
 
   // 1. Load Nonce for Encryption
-  if (!load_nonce_fixed())
+  if (!loadNonceFixed())
     return;
 
   // 2. Encrypt
@@ -194,7 +194,7 @@ void setup() {
   Serial.print("Original: ");
   print_hex("", original, 16);
 
-  if (!encrypt_block(KEY_SLOT_ID, original, mac, ciphertext)) {
+  if (!encryptBlock(KEY_SLOT_ID, original, mac, ciphertext)) {
     Serial.println("Encrypt failed.");
     return;
   }
@@ -206,13 +206,13 @@ void setup() {
   // 3. Load Nonce for Decryption (MUST be same as above)
   Serial.println("\n--- Step 2: Decrypting Data ---");
   // [CRITICAL] Encrypt invalidated the nonce. Reload it.
-  if (!load_nonce_fixed())
+  if (!loadNonceFixed())
     return;
 
   Serial.println("Sending Decrypt Command (Cipher + MAC)...");
 
   // Data Order: Cipher then MAC (per User Instruction)
-  if (decrypt_block(KEY_SLOT_ID, mac, ciphertext, decrypted)) {
+  if (decryptBlock(KEY_SLOT_ID, mac, ciphertext, decrypted)) {
     Serial.println("-> Decrypt SUCCESS!");
     Serial.print("Decrypted: ");
     print_hex("", decrypted, 16);

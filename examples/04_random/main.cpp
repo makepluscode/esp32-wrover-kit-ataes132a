@@ -22,7 +22,7 @@
  * @param length 생성할 랜덤 바이트 수 (최대 32바이트)
  * @return AES132_DEVICE_RETCODE_SUCCESS 성공 시
  */
-uint8_t generate_random(uint8_t *random_data, uint8_t length) {
+uint8_t generateRandom(uint8_t *random_data, uint8_t length) {
   if (length == 0 || length > 32) {
     Serial.println("Error: Random length must be between 1 and 32 bytes.");
     return 0; // Return 0 on error (same pattern as read_memory_block)
@@ -91,7 +91,7 @@ uint8_t generate_random(uint8_t *random_data, uint8_t length) {
  * @param data 분석할 데이터
  * @param length 데이터 길이
  */
-void analyze_random_distribution(const uint8_t *data, uint8_t length) {
+void analyzeRandomDistribution(const uint8_t *data, uint8_t length) {
   uint16_t sum = 0;
   uint8_t min_val = 0xFF;
   uint8_t max_val = 0x00;
@@ -138,7 +138,7 @@ void analyze_random_distribution(const uint8_t *data, uint8_t length) {
  *
  * Config Zone의 LockConfig 레지스터를 읽어 디바이스의 잠금 상태를 확인합니다.
  */
-void check_device_lock_status() {
+void checkDeviceLockStatus() {
   Serial.println("=== Checking Device Lock Status ===");
   uint8_t config_data[4] = {0};
   uint8_t ret = aes132m_read_memory(4, 0xF020, config_data);
@@ -193,12 +193,12 @@ void setup(void) {
   Serial.println("AES132 initialized successfully\n");
 
   // Lock 상태 확인
-  check_device_lock_status();
+  checkDeviceLockStatus();
 
   // 예제 1: 단일 랜덤 바이트 생성
   Serial.println("=== Example 1: Generate Single Random Byte ===");
   uint8_t random_byte = 0;
-  uint8_t bytes_generated = generate_random(&random_byte, 1);
+  uint8_t bytes_generated = generateRandom(&random_byte, 1);
 
   if (bytes_generated > 0) {
     Serial.print("Random byte: 0x");
@@ -219,7 +219,7 @@ void setup(void) {
   // 예제 2: 여러 랜덤 바이트 생성 (16바이트)
   Serial.println("=== Example 2: Generate 16 Random Bytes ===");
   uint8_t random_data[16] = {0};
-  bytes_generated = generate_random(random_data, 16);
+  bytes_generated = generateRandom(random_data, 16);
 
   if (bytes_generated > 0) {
     Serial.print("Successfully generated ");
@@ -241,7 +241,7 @@ void setup(void) {
 
   Serial.println("Generating 3 sequences of 32 random bytes each...\n");
 
-  bytes_generated = generate_random(random_seq1, 32);
+  bytes_generated = generateRandom(random_seq1, 32);
   if (bytes_generated > 0) {
     Serial.println("Sequence 1:");
     print_hex("  ", random_seq1, bytes_generated);
@@ -250,7 +250,7 @@ void setup(void) {
 
   delay(100); // 약간의 지연
 
-  bytes_generated = generate_random(random_seq2, 32);
+  bytes_generated = generateRandom(random_seq2, 32);
   if (bytes_generated > 0) {
     Serial.println("Sequence 2:");
     print_hex("  ", random_seq2, bytes_generated);
@@ -259,7 +259,7 @@ void setup(void) {
 
   delay(100); // 약간의 지연
 
-  bytes_generated = generate_random(random_seq3, 32);
+  bytes_generated = generateRandom(random_seq3, 32);
   if (bytes_generated > 0) {
     Serial.println("Sequence 3:");
     print_hex("  ", random_seq3, bytes_generated);
@@ -285,12 +285,12 @@ void setup(void) {
   // 예제 4: 통계적 분석
   Serial.println("=== Example 4: Statistical Analysis ===");
   uint8_t large_random[64] = {0};
-  bytes_generated = generate_random(large_random, 32);
+  bytes_generated = generateRandom(large_random, 32);
   if (bytes_generated > 0) {
     // 두 번 생성하여 64바이트 확보
     delay(50);
     uint8_t temp[32] = {0};
-    uint8_t bytes2 = generate_random(temp, 32);
+    uint8_t bytes2 = generateRandom(temp, 32);
     if (bytes2 > 0) {
       for (uint8_t i = 0; i < 32; i++) {
         large_random[32 + i] = temp[i];
@@ -302,7 +302,7 @@ void setup(void) {
   if (bytes_generated >= 32) {
     print_hex("Random data (64 bytes): ", large_random, bytes_generated);
     Serial.println();
-    analyze_random_distribution(large_random, bytes_generated);
+    analyzeRandomDistribution(large_random, bytes_generated);
   }
 
   Serial.println("=== Random Generation Examples Complete ===");

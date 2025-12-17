@@ -32,21 +32,21 @@
 // 0x09 = 0000 1001 (Link=1, Random=0, Legacy=1)
 // Fixed Nonce를 사용하기 위해 Random Bit를 0으로 설정함.
 // 이는 Example 07 루프백 테스트에 필수적임.
-const uint8_t keyConfig[4] = {0x09, 0x00, 0x00, 0x00};
+const uint8_t key_config[4] = {0x09, 0x00, 0x00, 0x00};
 
 // Test Key (0x00..0x0F)
-const uint8_t TEST_KEY[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+const uint8_t test_key[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                               0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
 
 // --- Helper Functions ---
 
-void print_header(const char *title) {
+void printHeader(const char *title) {
   Serial.println("\n--------------------------------------------");
   Serial.println(title);
   Serial.println("--------------------------------------------");
 }
 
-uint8_t read_4bytes(uint16_t addr, uint8_t *data) {
+uint8_t read4Bytes(uint16_t addr, uint8_t *data) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
   // [AES132 Datasheet 8.4 BlockRead Command]
@@ -76,14 +76,14 @@ uint8_t read_4bytes(uint16_t addr, uint8_t *data) {
   return ret;
 }
 
-uint8_t write_config_4bytes(uint16_t addr, const uint8_t *data) {
+uint8_t writeConfig4Bytes(uint16_t addr, const uint8_t *data) {
   return aes132m_write_memory(4, addr, (uint8_t *)data);
 }
 
 // Check Lock State and return safe-to-write status
-bool check_and_print_lock_state() {
+bool checkAndPrintLockState() {
   uint8_t buf[4];
-  if (read_4bytes(ADDR_LOCK_CONFIG, buf) != 0) {
+  if (read4Bytes(ADDR_LOCK_CONFIG, buf) != 0) {
     Serial.println("Error: Failed to read LockConfig.");
     return false;
   }
@@ -103,15 +103,15 @@ bool check_and_print_lock_state() {
   return unlocked;
 }
 
-void configure_chip() {
+void configureChip() {
   uint8_t buf[4];
-  if (read_4bytes(ADDR_CHIP_CONFIG, buf) == 0) {
+  if (read4Bytes(ADDR_CHIP_CONFIG, buf) == 0) {
     Serial.print("Current ChipConfig: ");
     print_hex("", buf, 4);
     if (buf[0] != CHIP_CONFIG_DEFAULT) {
       Serial.println("-> Updating ChipConfig to 0xC3 (Enable Encryption)...");
       buf[0] = CHIP_CONFIG_DEFAULT;
-      if (write_config_4bytes(ADDR_CHIP_CONFIG, buf) == 0) {
+      if (writeConfig4Bytes(ADDR_CHIP_CONFIG, buf) == 0) {
         Serial.println("-> Success: ChipConfig Updated.");
       } else {
         Serial.println("-> Error: Failed to update ChipConfig.");
@@ -122,10 +122,10 @@ void configure_chip() {
   }
 }
 
-void configure_key_slots() {
+void configureKeySlots() {
   // Slot 0
   Serial.println("Configuring Slot 0 (0xF080)...");
-  if (write_config_4bytes(ADDR_KEY_CONFIG, KEY_CONFIG_OPEN) == 0) {
+  if (writeConfig4Bytes(ADDR_KEY_CONFIG, key_config) == 0) {
     Serial.println("-> Slot 0 Config Updated (0x0D...).");
   } else {
     Serial.println("-> Error: Failed to update Slot 0.");
@@ -133,17 +133,17 @@ void configure_key_slots() {
 
   // Slot 1
   Serial.println("Configuring Slot 1 (0xF084)...");
-  if (write_config_4bytes(ADDR_KEY_CONFIG + 4, KEY_CONFIG_OPEN) == 0) {
+  if (writeConfig4Bytes(ADDR_KEY_CONFIG + 4, key_config) == 0) {
     Serial.println("-> Slot 1 Config Updated (0x0D...).");
   } else {
     Serial.println("-> Error: Failed to update Slot 1.");
   }
 }
 
-void load_keys_direct() {
+void loadKeysDirect() {
   // Slot 0
   Serial.println("Loading Key 0 (Direct Write to 0xF200)...");
-  if (aes132m_write_memory(16, ADDR_KEY_0_DIRECT, (uint8_t *)TEST_KEY) == 0) {
+  if (aes132m_write_memory(16, ADDR_KEY_0_DIRECT, (uint8_t *)test_key) == 0) {
     Serial.println("-> Success: Key 0 Loaded.");
   } else {
     Serial.println("-> Error: Failed to load Key 0.");
@@ -151,14 +151,14 @@ void load_keys_direct() {
 
   // Slot 1
   Serial.println("Loading Key 1 (Direct Write to 0xF210)...");
-  if (aes132m_write_memory(16, ADDR_KEY_1_DIRECT, (uint8_t *)TEST_KEY) == 0) {
+  if (aes132m_write_memory(16, ADDR_KEY_1_DIRECT, (uint8_t *)test_key) == 0) {
     Serial.println("-> Success: Key 1 Loaded.");
   } else {
     Serial.println("-> Error: Failed to load Key 1.");
   }
 }
 
-uint8_t read_16bytes(uint16_t addr, uint8_t *data) {
+uint8_t read16Bytes(uint16_t addr, uint8_t *data) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
   // [AES132 Datasheet 8.4 BlockRead Command]
@@ -188,14 +188,14 @@ uint8_t read_16bytes(uint16_t addr, uint8_t *data) {
   return ret;
 }
 
-void verify_keys() {
+void verifyKeys() {
   uint8_t buf[16];
 
   // Verify Key 0
   Serial.println("Verifying Key 0 (0xF200)...");
-  uint8_t ret = read_16bytes(ADDR_KEY_0_DIRECT, buf);
+  uint8_t ret = read16Bytes(ADDR_KEY_0_DIRECT, buf);
   if (ret == 0) {
-    if (memcmp(buf, TEST_KEY, 16) == 0) {
+    if (memcmp(buf, test_key, 16) == 0) {
       Serial.println("-> Match! Key 0 verified.");
     } else {
       Serial.println("-> Mismatch! Read data:");
@@ -208,9 +208,9 @@ void verify_keys() {
 
   // Verify Key 1
   Serial.println("Verifying Key 1 (0xF210)...");
-  ret = read_16bytes(ADDR_KEY_1_DIRECT, buf);
+  ret = read16Bytes(ADDR_KEY_1_DIRECT, buf);
   if (ret == 0) {
-    if (memcmp(buf, TEST_KEY, 16) == 0) {
+    if (memcmp(buf, test_key, 16) == 0) {
       Serial.println("-> Match! Key 1 verified.");
     } else {
       Serial.println("-> Mismatch! Read data:");
@@ -222,13 +222,13 @@ void verify_keys() {
   }
 }
 
-void dump_key_config_table() {
-  print_header("Final Verification: KeyConfig Table");
+void dumpKeyConfigTable() {
+  printHeader("Final Verification: KeyConfig Table");
   Serial.println("Slot | KeyConfig");
   Serial.println("-----|-----------");
   uint8_t buf[4];
   for (int i = 0; i < 16; i++) {
-    if (read_4bytes(ADDR_KEY_CONFIG + (i * 4), buf) == 0) {
+    if (read4Bytes(ADDR_KEY_CONFIG + (i * 4), buf) == 0) {
       if (i < 10)
         Serial.print(" ");
       Serial.print(i);
@@ -291,27 +291,27 @@ void setup() {
     Serial.println("No I2C devices found.");
   // -------------------------
 
-  print_header("Step 1: Diagnostics");
-  bool unlocked = check_and_print_lock_state();
+  printHeader("Step 1: Diagnostics");
+  bool unlocked = checkAndPrintLockState();
 
   if (unlocked) {
-    print_header("Step 2: Chip Configuration");
-    configure_chip();
+    printHeader("Step 2: Chip Configuration");
+    configureChip();
 
-    print_header("Step 3: Key Slot Configuration");
-    configure_key_slots();
+    printHeader("Step 3: Key Slot Configuration");
+    configureKeySlots();
 
-    print_header("Step 4: Key Loading (Direct Write)");
-    load_keys_direct();
+    printHeader("Step 4: Key Loading (Direct Write)");
+    loadKeysDirect();
 
-    print_header("Step 5: Load Verification");
-    verify_keys();
+    printHeader("Step 5: Load Verification");
+    verifyKeys();
   } else {
     Serial.println("\n[WARNING] Chip is LOCKED. Skipping Write operations.");
     Serial.println("If KeyConfig allows, run Example 6 directly.");
   }
 
-  dump_key_config_table();
+  dumpKeyConfigTable();
 
   Serial.println("\nDone. Chip is ready for Example 6.");
 }

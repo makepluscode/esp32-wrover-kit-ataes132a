@@ -30,8 +30,8 @@
 // --- Helper: Encrypt Function ---
 // Returns true on success
 // OUT: out_mac (16 bytes), out_ciphertext (16 bytes)
-bool encrypt_block(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
-                   uint8_t *out_ciphertext) {
+bool encryptBlock(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
+                  uint8_t *out_ciphertext) {
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
 
@@ -88,7 +88,7 @@ bool encrypt_block(uint8_t key_id, const uint8_t *plaintext, uint8_t *out_mac,
 
 // --- Helper: Generate Nonce ---
 // Required before Encryption in Unlocked/Testing mode
-bool generate_nonce() {
+bool generateNonce() {
   Serial.println("Generating Nonce...");
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
@@ -175,7 +175,7 @@ void setup() {
   }
 
   // 1. Generate Nonce
-  if (!generate_nonce()) {
+  if (!generateNonce()) {
     Serial.println("Critical Error: Nonce generation failed.");
     return;
   }
@@ -190,7 +190,7 @@ void setup() {
   Serial.print("Plaintext: ");
   print_hex("", plaintext, 16);
 
-  if (encrypt_block(KEY_SLOT_ID, plaintext, mac, ciphertext)) {
+  if (encryptBlock(KEY_SLOT_ID, plaintext, mac, ciphertext)) {
     Serial.println("-> Encryption SUCCESS!");
     Serial.print("MAC:        ");
     print_hex("", mac, 16);
@@ -209,7 +209,7 @@ void setup() {
   Serial.print(text_msg);
   Serial.println("\"");
 
-  if (encrypt_block(KEY_SLOT_ID, plaintext, mac, ciphertext)) {
+  if (encryptBlock(KEY_SLOT_ID, plaintext, mac, ciphertext)) {
     Serial.println("-> Encryption SUCCESS!");
     Serial.print("MAC:        ");
     print_hex("", mac, 16);
