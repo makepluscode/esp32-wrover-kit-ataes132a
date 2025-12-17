@@ -29,7 +29,7 @@
  * @param key_id 설정할 Key ID (0-15)
  * @return 0x00=성공
  */
-uint8_t configure_key_slot(uint8_t key_id) {
+uint8_t configureKeySlot(uint8_t key_id) {
 
   // KeyConfig 주소 계산 (슬롯당 4바이트)
   uint16_t config_addr = AES132_KEY_CONFIG_ADDR_BASE + (key_id * 4);
@@ -51,7 +51,7 @@ uint8_t configure_key_slot(uint8_t key_id) {
 /**
  * @brief Unlocked 상태에서 키 직접 쓰기 (BlockWrite 사용)
  */
-uint8_t write_key_directly(uint8_t key_id, const uint8_t *key_data) {
+uint8_t writeKeyDirectly(uint8_t key_id, const uint8_t *key_data) {
   // Key Memory 주소 계산: Base 0xF200 + (KeyID * 16)
   uint16_t key_addr = 0xF200 + (key_id * 16);
 
@@ -85,58 +85,31 @@ void setup(void) {
   uint8_t lock_config = 0xFF;
   uint8_t tx_buffer[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buffer[AES132_RESPONSE_SIZE_MAX];
+  uint8_t ret_read = 0;
 
-  // Read LockConfig (Address 0xF002) using BLOCK_READ (Command 0x10)
-  // Direct Read produced 0xFF, trying BlockCmd for verification
-  Serial.println("\n=== DEBUG: Checking Device State (BlockRead) ===");
+  // Read LockConfig (Address 0xF020)
+  // LockConfig Register is at 0xF020
+  Serial.println("\n=== DEBUG: Checking Device State (LockConfig) ===");
 
-  // Param1: Address (0xF000)
-  // Param2: Length (4)
-  // [AES132 Datasheet 8.4 BlockRead Command]
-  // OpCode: 0x02 (AES132_BLOCK_READ) -> 블록 읽기 명령
-  // Mode: 0 -> 메모리에서 직접 읽기
-  // Param1: Address (0xF000) -> 설정 메모리 시작 주소 (ChipConfig)
-  // Param2: Length (4) -> 읽을 데이터 길이
-  // Data: 없음
-  uint8_t ret_read = aes132m_execute(
-      AES132_BLOCK_READ, // [OpCode] BlockRead (0x02): 블록 읽기 명령
-      0,                 // [Mode] 0: 메모리 직접 읽기
-      0xF000,            // [Param1] Address: ChipConfig 시작 주소
-      4,                 // [Param2] Length: 읽을 데이터 길이
-      0,                 // [Data1 Length] 0: 입력 데이터 없음
-      NULL,              // [Data1 Pointer] NULL: 입력 데이터 없음
-      0,                 // [Data2 Length] 0: 입력 데이터 없음
-      NULL,              // [Data2 Pointer] NULL: 입력 데이터 없음
-      0,                 // [Data3 Length] 0: 입력 데이터 없음
-      NULL,              // [Data3 Pointer] NULL: 입력 데이터 없음
-      0,                 // [Data4 Length] 0: 입력 데이터 없음
-      NULL,              // [Data4 Pointer] NULL: 입력 데이터 없음
-      tx_buffer,         // [TX Buffer] 송신 버퍼 포인터
-      rx_buffer          // [RX Buffer] 수신 버퍼 포인터
-  );
+  uint8_t lock_data[4] = {0};
+  // Read 4 bytes starting at 0xF020 (LockConfig is the first byte)
+  uint8_t ret_lock = aes132m_read_memory(4, 0xF020, lock_data);
 
-  if (ret_read == AES132_DEVICE_RETCODE_SUCCESS) {
-    // Response: [Count][Status][Data...][CRC]
-    // Data starts at index 2
-    uint8_t count = rx_buffer[AES132_RESPONSE_INDEX_COUNT];
-    if (count >= 4 + 2) {
-      Serial.print("Config Memory [0xF000-0xF003]: ");
-      print_hex("", &rx_buffer[AES132_RESPONSE_INDEX_DATA], 4);
+  if (ret_lock == AES132_DEVICE_RETCODE_SUCCESS) {
+    lock_config = lock_data[0];
+    Serial.print("LockConfig (0xF020): 0x");
+    Serial.println(lock_config, HEX);
 
-      lock_config = rx_buffer[AES132_RESPONSE_INDEX_DATA + 2];
-      Serial.print("LockConfig (0xF002): 0x");
-      Serial.println(lock_config, HEX);
-
-      if (lock_config == 0x55)
-        Serial.println("-> Device is UNLOCKED");
-      else if (lock_config == 0x00)
-        Serial.println("-> Device is LOCKED");
-      else
-        Serial.println("-> Device Lock State Unknown (Likely LOCKED)");
+    if (lock_config == 0x55) {
+      Serial.println("-> Device is UNLOCKED");
+    } else if (lock_config == 0x00) {
+      Serial.println("-> Device is LOCKED");
+    } else {
+      Serial.println("-> Device Lock State Unknown");
     }
   } else {
-    Serial.print("Failed to read Config Memory (BlockRead): 0x");
-    Serial.println(ret_read, HEX);
+    Serial.print("Failed to read LockConfig: 0x");
+    Serial.println(ret_lock, HEX);
   }
 
   // Read KeyConfig[0] (Address 0xF020) using BLOCK_READ
@@ -250,7 +223,7 @@ void setup(void) {
   Serial.println(" ===");
   Serial.println("Setting KeyConfig to allow Encryption/Decryption...");
 
-  ret = configure_key_slot(target_key_id);
+  ret = configureKeySlot(target_key_id);
   print_result("Configure Slot", ret);
 
   if (ret != AES132_DEVICE_RETCODE_SUCCESS) {
@@ -268,13 +241,12 @@ void setup(void) {
 
   print_hex("Key to Load: ", my_key, 16);
 
-  ret = write_key_directly(target_key_id, my_key);
+  ret = writeKeyDirectly(target_key_id, my_key);
   print_result("Key Direct Write", ret);
 
   if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
     Serial.println("\nSUCCESS: Key written successfully (Direct Write for "
                    "Unlocked Chip)!");
-    Serial.println("IMPORTANT: You must update Example 6 to use Slot 2.");
   } else {
     Serial.println("\nFAILED: Could not write key.");
     Serial.println("Possible reasons:");

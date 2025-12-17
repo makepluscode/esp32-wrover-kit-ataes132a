@@ -76,7 +76,6 @@ Key to Load: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
 [Key Direct Write] SUCCESS
 
 SUCCESS: Key written successfully (Direct Write for Unlocked Chip)!
-IMPORTANT: You must update Example 6 to use Slot 2.
 ```
 
 ## 문제 해결 (Troubleshooting)
