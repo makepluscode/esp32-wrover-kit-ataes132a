@@ -87,12 +87,40 @@ uint8_t i2c_send_stop(void) {
 // Flag to track if we need repeated start (for read operations)
 static bool need_repeated_start = false;
 
+// I2C debugging
+#define DEBUG_I2C 0 // Set to 1 to enable I2C data logging
+
+#if DEBUG_I2C
+static void print_i2c_data(const char *prefix, uint8_t address, uint8_t count,
+                           uint8_t *data) {
+  Serial.print(prefix);
+  Serial.print(" [Addr: 0x");
+  if (address < 0x10)
+    Serial.print("0");
+  Serial.print(address, HEX);
+  Serial.print("] (");
+  Serial.print(count);
+  Serial.print(" bytes): ");
+  for (uint8_t i = 0; i < count; i++) {
+    if (data[i] < 0x10)
+      Serial.print("0");
+    Serial.print(data[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+#endif
+
 /** \brief This function sends bytes to an I2C device.
  * \param[in] count number of bytes to send
  * \param[in] data pointer to tx buffer
  * \return status of the operation
  */
 uint8_t i2c_send_bytes(uint8_t count, uint8_t *data) {
+#if DEBUG_I2C
+  print_i2c_data("I2C TX", i2c_address_current, count, data);
+#endif
+
   Wire.beginTransmission(i2c_address_current >> 1);
 
   for (uint8_t i = 0; i < count; i++) {
@@ -143,6 +171,10 @@ uint8_t i2c_receive_bytes(uint8_t count, uint8_t *data) {
       return I2C_FUNCTION_RETCODE_COMM_FAIL;
     }
   }
+
+#if DEBUG_I2C
+  print_i2c_data("I2C RX", i2c_address_current, count, data);
+#endif
 
   return I2C_FUNCTION_RETCODE_SUCCESS;
 }

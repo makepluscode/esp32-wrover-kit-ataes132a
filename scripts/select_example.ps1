@@ -15,8 +15,8 @@ if ($args.Count -eq 0) {
 
 $ExampleNumber = [int]$args[0]
 
-if (($ExampleNumber -lt 1 -or $ExampleNumber -gt 10) -and $ExampleNumber -ne 99) {
-    Write-Host "Error: Example number must be between 1 and 10." -ForegroundColor Red
+if (($ExampleNumber -lt 1 -or $ExampleNumber -gt 10) -and $ExampleNumber -ne 98 -and $ExampleNumber -ne 99) {
+    Write-Host "Error: Example number must be between 1 and 10, or 98, 99." -ForegroundColor Red
     exit 1
 }
 
