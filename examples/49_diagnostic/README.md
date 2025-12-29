@@ -1,4 +1,4 @@
-# Example 99: ATAES132A 진단 및 설정 도구 (Diagnostic Tool)
+# Example 49: ATAES132A 진단 및 설정 도구 (Diagnostic Tool)
 
 이 예제는 ATAES132A 칩의 상태를 진단하고, 개발 및 테스트를 위한 필수 설정을 적용하는 도구입니다.
 
@@ -30,7 +30,7 @@
 
 1.  이 프로젝트를 빌드하고 업로드합니다.
     ```powershell
-    ./build.ps1 99 all
+    ./build.ps1 49 all
     ```
 2.  시리얼 모니터(`115200 bps`)를 통해 로그를 확인합니다.
 

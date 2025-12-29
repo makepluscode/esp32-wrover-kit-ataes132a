@@ -25,6 +25,13 @@
 9. [예제 9: 인증](09_authentication/) - MAC 기반 인증
 10. [예제 10: 키 생성](10_key_create/) - 새로운 키 생성
 
+### 레벨 4: 특수 및 유틸리티 (Special & Utility)
+- ✅ [예제 31: ReadOnly 테스트](31_readonly_test/) - 읽기 전용 존 설정 및 검증 
+- ✅ [예제 32: 인증 기반 데이터 접근](32_auth_write_without_lock/) - 인증 후 데이터 쓰기 (Unlocked)
+- ✅ [예제 48: I2C 스캐너](48_scan_only/) - 버스 스캔 유틸리티
+- ✅ [예제 49: 진단 도구](49_diagnostic/) - 칩 상태 진단 및 초기화
+- ✅ [예제 99: 보안 설정 및 잠금](99_config_lock/) - 칩 영구 잠금 및 수술 도구 보안 설정
+
 ## 사용 방법
 
 ### 특정 예제 빌드 및 실행

@@ -1,4 +1,4 @@
-# 예제 98: I2C 버스 스캐너 (Scan Only)
+# 예제 48: I2C 버스 스캐너 (Scan Only)
 
 이 예제는 I2C 버스를 스캔하여 연결된 모든 슬레이브 디바이스의 주소를 출력합니다.
 
@@ -10,7 +10,7 @@
 ## 실행 방법
 1. 예제 98 선택 및 실행:
    ```powershell
-   .\build.ps1 98 all
+   .\build.ps1 48 all
    ```
 
 ## 예상 출력
@@ -19,7 +19,7 @@ I2C 버스에 ATAES132A가 정상적으로 연결되어 있다면 다음과 유�
 ```text
 ========================================
 ESP32 I2C Bus Scanner
-Example 98: Scan Only
+Example 48: Scan Only
 ========================================
 
 Scanning I2C bus (SDA: 21, SCL: 22)...
