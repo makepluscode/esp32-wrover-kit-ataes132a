@@ -15,7 +15,7 @@ if ($args.Count -eq 0) {
 
 $ExampleNumber = [int]$args[0]
 
-if ($ExampleNumber -notmatch '^(1|2|3|4|5|6|7|8|9|10|31|32|48|49|51|99)$') {
+if ($ExampleNumber -notmatch '^(1|2|3|4|5|6|7|8|9|10|31|32|48|49|51|52|99)$') {
     Write-Host "Error: Example number must be between 1 and 10, or 31, 32, 98, 99." -ForegroundColor Red
     exit 1
 }

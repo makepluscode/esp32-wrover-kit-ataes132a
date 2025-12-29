@@ -246,9 +246,14 @@ bool calculate_auth_mac(const uint8_t *key, const uint8_t *nonce,
   if (ret != 0)
     return false;
 
-  uint8_t ccm_nonce[12];
-  memcpy(ccm_nonce, nonce, 11);
-  ccm_nonce[11] = 0x01; // MacCount
+  // [수정] 배열 크기를 13으로 변경 (데이터시트 Appendix I 규격)
+  uint8_t ccm_nonce[13];
+
+  // [수정] 칩 Nonce 12바이트 전체 복사
+  memcpy(ccm_nonce, nonce, 12);
+
+  // [수정] 13번째 바이트(인덱스 12)에 MacCount 설정
+  ccm_nonce[12] = 0x01;
 
   uint8_t add[14];
   memset(add, 0, 14);
@@ -262,7 +267,8 @@ bool calculate_auth_mac(const uint8_t *key, const uint8_t *nonce,
   add[7] = p2 & 0xFF;
   add[8] = 0x03; // MacFlag: Random Nonce + Input MAC
 
-  ret = mbedtls_ccm_encrypt_and_tag(&ctx, 0, ccm_nonce, 12, add, 14, NULL, NULL,
+  // [수정] mbedtls 호출 시 nonce 길이를 13으로 전달
+  ret = mbedtls_ccm_encrypt_and_tag(&ctx, 0, ccm_nonce, 13, add, 14, NULL, NULL,
                                     out_mac, 16);
   mbedtls_ccm_free(&ctx);
   return (ret == 0);

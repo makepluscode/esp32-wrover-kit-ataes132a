@@ -31,6 +31,7 @@
 - ✅ [예제 48: I2C 스캐너](48_scan_only/) - 버스 스캔 유틸리티
 - ✅ [예제 49: 진단 도구](49_diagnostic/) - 칩 상태 진단 및 초기화
 - ✅ [예제 51: RO 테스트 (Locked)](51_readonly_test_locked/) - 잠금 후 Zone 0 읽기 전용 확인
+- ✅ [예제 52: Auth 쓰기 (Locked)](52_auth_write_locked/) - 잠금 후 인증 기반 데이터 기입
 - ✅ [예제 99: 보안 설정 및 잠금](99_config_lock/) - 칩 영구 잠금 및 수술 도구 보안 설정
 
 ## 사용 방법
