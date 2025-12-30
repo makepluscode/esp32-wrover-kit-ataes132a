@@ -23,12 +23,12 @@ Example 48: Scan Only
 ========================================
 
 Scanning I2C bus (SDA: 21, SCL: 22)...
-I2C device found at address 0x61  (C2 in 8-bit format)
+I2C device found at address 0x50  (A0 in 8-bit format)
 Scan complete. Found 1 device(s).
 
 Scanning finished.
 ```
 
 ## 참고
-- 7비트 주소 `0x61`은 8비트 형식으로 `0xC2` (쓰기) 또는 `0xC3` (읽기)에 해당합니다.
+- 7비트 주소 `0x50`은 8비트 형식으로 `0xA0` (쓰기) 또는 `0xA1` (읽기)에 해당합니다.
 - 디지로그나 다른 센서가 연결되어 있다면 추가적인 주소가 출력될 수 있습니다.

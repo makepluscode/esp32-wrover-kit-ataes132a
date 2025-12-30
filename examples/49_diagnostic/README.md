@@ -6,7 +6,7 @@
 
 1.  **I2C 버스 스캔 (I2C Scan)**
     *   연결된 모든 I2C 장치를 검색합니다.
-    *   **결과**: ATAES132A의 기본 주소는 `0x50`이나, 본 하드웨어에서는 `0x61` (`0xC2` 8-bit)로 설정되어 있음을 확인하고 자동으로 감지합니다.
+    *   **결과**: ATAES132A의 I2C 주소 `0x50` (`0xA0` 8-bit)을 확인하고 자동으로 감지합니다.
 
 2.  **칩 상태 확인 (Lock Status)**
     *   `LockChipConfig`, `LockConfig`, `LockKey` 레지스터를 읽어 잠금(Lock) 상태를 확인합니다.
@@ -39,7 +39,7 @@
 ```text
 === ATAES132A Repair & Init Tool ===
 Performing I2C Scan (Pre-Wakeup)...
-I2C device found at address 0x61 !
+I2C device found at address 0x50 !
 
 Step 1: Diagnostics
 LockConfig (0xF020): 55 55 55 FF

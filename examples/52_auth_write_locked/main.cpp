@@ -1,14 +1,18 @@
 /**
  * @file main.cpp
- * @brief 예제: 52_auth_write_locked - 잠금 후 인증 기반 쓰기 테스트 (v2)
+ * @brief Example 52: Auth-Based Write on Locked Chip
  *
- * 이 예제는 99번 예제로 칩이 잠긴 후, 권한이 필요한 Zone 1(0x0100)에
- * 인증(Auth)을 거쳐 성공적으로 데이터를 기입하는 과정을 보여줍니다.
+ * Demonstrates ATAES132A authentication mechanism on a LOCKED chip:
+ * - Read ManufacturingID via BlockRead
+ * - Generate Nonce (Inbound Mode for testing)
+ * - Calculate AES-CCM MAC with correct 13-byte nonce
+ * - Execute Auth command with ReadOK + WriteOK permissions
+ * - Verify Zone 1 access after authentication
  *
- * 수정 사항:
- * 1. CCM Nonce 구성을 12+1(MacCount) = 13바이트로 변경.
- * 2. Auth 리턴 완료 후 Write 권한을 위한 Usage(Param2)를 0x0002로 설정.
- * 3. ManufacturingID를 0xF02A에서 동적으로 읽어와 사용.
+ * Prerequisites:
+ * - Chip must be locked using Example 99
+ * - ZoneConfig[1] must have AuthRead=1, AuthWrite=1
+ * - KeyMemory[0] must contain MASTER_KEY
  */
 
 #include "aes132_comm_marshaling.h"
@@ -18,149 +22,208 @@
 #include <Arduino.h>
 #include <mbedtls/ccm.h>
 
-// 99번 예제에서 설정한 마스터 키 (Key 0)
-const uint8_t MASTER_KEY[16] = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
-                                0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF};
+// =============================================================================
+// Configuration
+// =============================================================================
+#define MANID_ADDR 0xF02B      // ManufacturingID address
+#define ZONE1_DATA_ADDR 0x0100 // Zone 1 data address
 
-// 함수 프로토타입
+// Master Key (must match Example 99 configuration)
+const uint8_t MASTER_KEY[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                                0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+// =============================================================================
+// AES-CCM MAC Calculation
+// =============================================================================
+/**
+ * @brief Calculate AES-CCM MAC for Auth command
+ *
+ * CCM Nonce: 13 bytes (Nonce[0:11] + MacCount)
+ * AAD: 14 bytes (ManID + Opcode + Mode + Param1 + Param2 + MacFlag + Padding)
+ */
 bool calculate_auth_mac(const uint8_t *key, const uint8_t *nonce,
                         const uint8_t *man_id, uint8_t op, uint8_t mode,
-                        uint16_t p1, uint16_t p2, uint8_t *out_mac);
+                        uint16_t p1, uint16_t p2, uint8_t mac_flag,
+                        uint8_t *out_mac) {
+  mbedtls_ccm_context ctx;
+  mbedtls_ccm_init(&ctx);
 
+  int ret = mbedtls_ccm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, key, 128);
+  if (ret != 0)
+    return false;
+
+  // Build 13-byte CCM Nonce
+  uint8_t ccm_nonce[13];
+  memcpy(ccm_nonce, nonce, 12);
+  ccm_nonce[12] = 0x01; // MacCount = 1
+
+  // Build 14-byte AAD
+  uint8_t aad[14] = {0};
+  aad[0] = man_id[0];
+  aad[1] = man_id[1];
+  aad[2] = op;
+  aad[3] = mode;
+  aad[4] = (uint8_t)(p1 >> 8);
+  aad[5] = (uint8_t)(p1 & 0xFF);
+  aad[6] = (uint8_t)(p2 >> 8);
+  aad[7] = (uint8_t)(p2 & 0xFF);
+  aad[8] = mac_flag;
+  // [9:13] = 0x00 (padding)
+
+  print_hex("-> CCM Nonce (13 bytes): ", ccm_nonce, 13);
+  print_hex("-> AAD (14 bytes): ", aad, 14);
+
+  ret = mbedtls_ccm_encrypt_and_tag(&ctx, 0, ccm_nonce, 13, aad, 14, NULL, NULL,
+                                    out_mac, 16);
+  mbedtls_ccm_free(&ctx);
+  return (ret == 0);
+}
+
+// =============================================================================
+// Main Setup
+// =============================================================================
 void setup() {
   Serial.begin(AES132_SERIAL_BAUD);
   while (!Serial)
     delay(10);
 
   Serial.println("\n========================================");
-  Serial.println("예제 52: 잠금 후 인증 기반 쓰기 테스트 (v2)");
+  Serial.println("Example 52: Auth-Based Write (Locked Chip)");
   Serial.println("========================================\n");
 
   if (aes132_init() != AES132_FUNCTION_RETCODE_SUCCESS) {
-    Serial.println("AES132 초기화 실패");
+    Serial.println("AES132 Init Failed");
     return;
   }
 
   uint8_t ret;
   uint8_t tx_buf[AES132_COMMAND_SIZE_MAX];
   uint8_t rx_buf[AES132_RESPONSE_SIZE_MAX];
-  uint8_t current_manid[2] = {0x00, 0x00};
 
-  // 0. ManufacturingID 지정 (칩이 잠긴 상태에서 읽기가 불안정할 수 있으므로
-  // 0x00EE 하드코딩)
-  current_manid[0] = 0x00;
-  current_manid[1] = 0x00;
-  Serial.printf("[Step 0] ManufacturingID 고정 사용: %02X %02X\n",
-                current_manid[0], current_manid[1]);
+  // =========================================================================
+  // Step 0: Read ManufacturingID
+  // =========================================================================
+  Serial.println("Step 0: ManufacturingID 읽기 (BlockRead)");
 
+  ret = aes132m_execute(AES132_BLOCK_READ, 0x00, MANID_ADDR, 0x0002, 0, NULL, 0,
+                        NULL, 0, NULL, 0, NULL, tx_buf, rx_buf);
+
+  uint8_t man_id[2];
+  if (ret == AES132_DEVICE_RETCODE_SUCCESS && rx_buf[1] == 0x00) {
+    man_id[0] = rx_buf[2];
+    man_id[1] = rx_buf[3];
+    Serial.print("-> SUCCESS: ManufacturingID = ");
+    print_hex("", man_id, 2);
+  } else {
+    man_id[0] = 0x00;
+    man_id[1] = 0xEE;
+    Serial.println("-> FAIL: Using default 00 EE");
+  }
   Serial.println();
 
-  // 1. 인증 전 쓰기 시도
+  // =========================================================================
+  // Step 1: Pre-Auth Write Attempt (Expected to Fail)
+  // =========================================================================
+  Serial.println("Step 1: 인증 전 Zone 1 쓰기 시도 (실패 예상)");
+
   uint8_t dummy[16] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
                        0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00};
-  Serial.println("[Step 1] 인증 없이 Zone 1 (0x0100) 쓰기 시도...");
-  ret = aes132m_write_memory(16, 0x0100, dummy);
-  Serial.printf("-> 결과: 0x%02X (에러 기대)\n", ret);
-
+  ret = aes132m_write_memory(16, ZONE1_DATA_ADDR, dummy);
+  print_result("Pre-Auth Write to Zone 1", ret);
+  if (ret != 0) {
+    Serial.println("-> 예상대로 실패! (인증 필요)");
+  }
   Serial.println();
 
-  // 2. Auth 명령 수행
-  Serial.println("[Step 2] 마스터 키(Key 0)를 사용한 인증 수행...");
+  // =========================================================================
+  // Step 2: Generate Nonce (Random Mode - required by KeyConfig)
+  // =========================================================================
+  Serial.println("Step 2: Nonce 생성 (Random Mode - 0x01)");
 
-  // 2-1. Nonce 생성
-  uint8_t nonce[12];
-  uint8_t seed[12] = {0};
+  // KeyConfig[0] = 0x89 requires RandomNonce
+  uint8_t seed[12] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+                      0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C};
+  uint8_t nonce[12]; // Chip-generated random nonce
+
   ret = aes132m_execute(AES132_NONCE, 0x01, 0, 0, 12, seed, 0, NULL, 0, NULL, 0,
                         NULL, tx_buf, rx_buf);
-  if (ret != 0) {
-    Serial.printf("-> Nonce 생성 실패: 0x%02X\n", ret);
+
+  if (ret != AES132_DEVICE_RETCODE_SUCCESS) {
+    Serial.printf("Nonce Generation Failed: 0x%02X\n", ret);
     return;
   }
+  // Copy chip-generated random nonce from response
   memcpy(nonce, &rx_buf[2], 12);
-  Serial.print("-> Nonce: ");
-  print_hex("", nonce, 12);
-
-  // 2-2. MAC 계산 (Usage: 0x0000 - 99번 예제 패턴과 동일)
-  uint16_t auth_usage = 0x0002;
-  uint8_t mac_tag[16];
-  if (!calculate_auth_mac(MASTER_KEY, nonce, current_manid, AES132_AUTH, 0x01,
-                          0x0000, auth_usage, mac_tag)) {
-    Serial.println("-> MAC 계산 오류");
-    return;
-  }
-  Serial.print("-> Auth MAC: ");
-  print_hex("", mac_tag, 16);
-
-  // 2-3. Auth 실행 (Param2에 auth_usage 전달)
-  ret = aes132m_execute(AES132_AUTH, 0x01, 0x0000, auth_usage, 16, mac_tag, 0,
-                        NULL, 0, NULL, 0, NULL, tx_buf, rx_buf);
-  if (ret != 0 || rx_buf[1] != 0) {
-    Serial.printf("-> 인증 실패: 0x%02X (RetCode: 0x%02X)\n", ret, rx_buf[1]);
-    return;
-  }
-  Serial.println("-> 인증 성공! (WriteOK 권한 획득)");
-
+  print_hex("-> Random Nonce (from chip): ", nonce, 12);
   Serial.println();
 
-  // 3. 인증 후 쓰기 시도
-  Serial.println("[Step 3] 인증 완료 후 Zone 1 (0x0100) 데이터 기입...");
-  uint8_t secret_msg[16] = "LOCKED_AUTH_OK";
-  ret = aes132m_write_memory(16, 0x0100, secret_msg);
-  if (ret == 0) {
-    Serial.println("-> 데이터 기입 성공!");
+  // =========================================================================
+  // Step 3: Calculate MAC and Execute Auth
+  // =========================================================================
+  Serial.println("Step 3: MAC 계산 및 Auth 명령 실행");
 
-    // 읽어서 확인
-    uint8_t read_buf[16];
-    if (aes132m_read_memory(16, 0x0100, read_buf) == 0) {
-      Serial.print("-> 읽기 확인: ");
-      Serial.write(read_buf, 16);
-      Serial.println();
-    }
+  uint8_t mac[16];
+  // Param2 = 0x0003 (ReadOK + WriteOK), MacFlag = 0x03 (Random Nonce)
+  if (!calculate_auth_mac(MASTER_KEY, nonce, man_id, AES132_AUTH, 0x01, 0x0000,
+                          0x0003, 0x03, mac)) {
+    Serial.println("MAC Calculation Failed");
+    return;
+  }
+  print_hex("-> Host Calculated MAC: ", mac, 16);
+
+  // Execute Auth command
+  ret = aes132m_execute(AES132_AUTH, 0x01, 0x0000, 0x0003, 16, mac, 0, NULL, 0,
+                        NULL, 0, NULL, tx_buf, rx_buf);
+  print_result("Authentication", ret);
+
+  uint8_t status = 0;
+  aes132c_read_device_status_register(&status);
+  Serial.printf("Device Status: 0x%02X\n", status);
+
+  if (ret == 0x00 && !(status & 0x20)) {
+    Serial.println("-> AUTH SUCCESS! Read+Write access granted.");
   } else {
-    Serial.printf("-> 데이터 기입 실패: 0x%02X\n", ret);
+    Serial.println("-> AUTH FAILED.");
+    if (ret == 0x40)
+      Serial.println("   (Error 0x40 = MAC Mismatch)");
+    return;
+  }
+  Serial.println();
+
+  // =========================================================================
+  // Step 4: Post-Auth Write and Verify
+  // =========================================================================
+  Serial.println("Step 4: 인증 후 Zone 1 쓰기/읽기 검증");
+
+  uint8_t write_data[16] = "LOCKED_AUTH_OK";
+  print_hex("-> Write Data: ", write_data, 16);
+
+  ret = aes132m_write_memory(16, ZONE1_DATA_ADDR, write_data);
+  print_result("BlockWrite to Zone 1", ret);
+
+  uint8_t read_data[16] = {0};
+  ret = aes132m_read_memory(16, ZONE1_DATA_ADDR, read_data);
+  print_result("BlockRead from Zone 1", ret);
+
+  if (ret == AES132_DEVICE_RETCODE_SUCCESS) {
+    print_hex("-> Read Data: ", read_data, 16);
+    Serial.print("-> Read String: \"");
+    for (int i = 0; i < 16; i++) {
+      if (read_data[i] >= 0x20 && read_data[i] <= 0x7E)
+        Serial.write(read_data[i]);
+      else
+        Serial.print(".");
+    }
+    Serial.println("\"");
+
+    if (memcmp(write_data, read_data, 16) == 0) {
+      Serial.println("-> DATA VERIFIED: Write/Read match!");
+    } else {
+      Serial.println("-> Warning: Data mismatch");
+    }
   }
 
-  Serial.println("\n테스트 종료.");
+  Serial.println("\n=== Example 52 Complete ===");
 }
 
 void loop() { delay(1000); }
-
-/**
- * @brief AES-CCM MAC 계산 (Auth 명령용)
- */
-bool calculate_auth_mac(const uint8_t *key, const uint8_t *nonce,
-                        const uint8_t *man_id, uint8_t op, uint8_t mode,
-                        uint16_t p1, uint16_t p2, uint8_t *out_mac) {
-  mbedtls_ccm_context ctx;
-  mbedtls_ccm_init(&ctx);
-  int ret = mbedtls_ccm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, key, 128);
-  if (ret != 0)
-    return false;
-
-  // [수정] 배열 크기를 13으로 변경 (데이터시트 Appendix I 규격)
-  uint8_t ccm_nonce[13];
-
-  // [수정] 칩 Nonce 12바이트 전체 복사
-  memcpy(ccm_nonce, nonce, 12);
-
-  // [수정] 13번째 바이트(인덱스 12)에 MacCount 설정
-  ccm_nonce[12] = 0x01;
-
-  uint8_t add[14];
-  memset(add, 0, 14);
-  add[0] = man_id[0];
-  add[1] = man_id[1];
-  add[2] = op;
-  add[3] = mode;
-  add[4] = p1 >> 8;
-  add[5] = p1 & 0xFF;
-  add[6] = p2 >> 8;
-  add[7] = p2 & 0xFF;
-  add[8] = 0x03; // MacFlag: Random Nonce + Input MAC
-
-  // [수정] mbedtls 호출 시 nonce 길이를 13으로 전달
-  ret = mbedtls_ccm_encrypt_and_tag(&ctx, 0, ccm_nonce, 13, add, 14, NULL, NULL,
-                                    out_mac, 16);
-  mbedtls_ccm_free(&ctx);
-  return (ret == 0);
-}
